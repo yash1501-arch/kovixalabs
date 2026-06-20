@@ -1,0 +1,14 @@
+node_modules/
+.git/
+*.md
+.env
+.env.local
+.gitignore
+.next/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vscode/
+.idea/

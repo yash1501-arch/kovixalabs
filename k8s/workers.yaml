@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aismos-workers
+  labels:
+    app: aismos-workers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aismos-workers
+  template:
+    metadata:
+      labels:
+        app: aismos-workers
+    spec:
+      containers:
+      - name: workers
+        image: aismos/workers:latest
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: aismos-secrets
+              key: redis-url
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: aismos-secrets
+              key: database-url
+        - name: AI_SERVICE_URL
+          value: "http://aismos-ai:8000"
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aismos-workers
+spec:
+  selector:
+    app: aismos-workers
+  ports:
+  - port: 4001
+    targetPort: 4001
+  type: ClusterIP

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aismos-web
+  labels:
+    app: aismos-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aismos-web
+  template:
+    metadata:
+      labels:
+        app: aismos-web
+    spec:
+      containers:
+      - name: web
+        image: aismos/web:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://api.aismos.ai"
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aismos-web
+spec:
+  selector:
+    app: aismos-web
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP

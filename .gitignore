@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build output
+dist/
+.next/
+out/
+coverage/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Databases and local state
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+mongo_data/
+redis_data/
+qdrant_data/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+
+/generated/prisma
+
+# UI/UX Pro Max Skill
+.ui-ux-pro-max-skill/

@@ -1,0 +1,50 @@
+{
+  "name": "kovixalabs-aismos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AISMOS monorepo for the KOVIXAILABS AI social media operating system.",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/workers"
+  ],
+  "scripts": {
+    "dev:services": "docker compose up -d postgres mongo redis qdrant",
+    "dev:web": "npm --workspace @kovixalabs/web run dev",
+    "dev:api": "npm --workspace @kovixalabs/api run dev",
+    "dev:workers": "npm --workspace @kovixalabs/workers run dev",
+    "dev:ai": "python -m uvicorn app.main:app --reload --app-dir services/ai",
+    "dev:ai:install": "pip install -r services/ai/requirements.txt",
+    "dev:all": "concurrently -n api,web,ai,workers -c blue,green,yellow,magenta \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:ai\" \"npm run dev:workers\"",
+    "start": "node scripts/start-dev.mjs",
+    "build:shared": "npm --workspace @kovixalabs/shared run build",
+    "build": "npm run build:shared && npm --workspace @kovixalabs/api run build && npm --workspace @kovixalabs/workers run build && npm --workspace @kovixalabs/web run build",
+    "typecheck:shared": "npm --workspace @kovixalabs/shared run typecheck",
+    "typecheck": "npm run build:shared && npm --workspace @kovixalabs/api run typecheck && npm --workspace @kovixalabs/workers run typecheck && npm --workspace @kovixalabs/web run typecheck",
+    "prisma:generate": "npm --workspace @kovixalabs/api run prisma:generate",
+    "db:migrate": "npm --workspace @kovixalabs/api run db:migrate",
+    "db:push": "npm --workspace @kovixalabs/api run db:push",
+    "test:ai": "cd services/ai && python -m pytest",
+    "test": "npm run test:ai",
+    "lint": "eslint apps/ packages/ services/workers/",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,css,md}\""
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0",
+    "python": ">=3.11"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "framer-motion": "^12.40.0"
+  }
+}

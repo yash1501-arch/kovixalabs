@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aismos-ai
+  labels:
+    app: aismos-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aismos-ai
+  template:
+    metadata:
+      labels:
+        app: aismos-ai
+    spec:
+      containers:
+      - name: ai
+        image: aismos/ai:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: AI_PORT
+          value: "8000"
+        - name: LLM_PROVIDER
+          value: "openai"
+        - name: LLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aismos-secrets
+              key: llm-api-key
+        - name: LLM_API_URL
+          value: "https://api.openai.com/v1"
+        - name: LLM_MODEL
+          value: "gpt-4o-mini"
+        - name: EMBEDDING_PROVIDER
+          value: "openai"
+        - name: EMBEDDING_MODEL
+          value: "text-embedding-3-small"
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aismos-ai
+spec:
+  selector:
+    app: aismos-ai
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

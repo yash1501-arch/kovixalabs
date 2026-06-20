@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum AiTaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  REJECTED
+}
+
+enum ContentPlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum ContentPlanItemStatus {
+  IDEA
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+}
+
+model User {
+  id          String            @id @default(cuid())
+  email       String            @unique
+  name        String?
+  passwordHash String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  memberships WorkspaceMember[]
+  aiTasks     AiTask[]
+  sessions    UserSession[]
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  members   WorkspaceMember[]
+  brands    Brand[]
+  brandMemoryEntries BrandMemoryEntry[]
+  posts     Post[]
+  aiTasks   AiTask[]
+  socialAccounts SocialAccount[]
+  contentPlans ContentPlan[]
+  trends    Trend[]
+  imagePrompts ImagePrompt[]
+  videoScripts VideoScript[]
+  musicSuggestions MusicSuggestion[]
+  adCampaigns AdCampaign[]
+  swarmTasks SwarmTask[]
+  swarmAgents SwarmAgent[]
+  autopilotConfigs AutopilotConfig[]
+  autopilotRuns AutopilotRun[]
+  learningInsights LearningInsight[]
+  learningProfiles LearningProfile[]
+  finetuneDatasets FinetuneDataset[]
+  finetuneJobs FinetuneJob[]
+  finetunedModels FinetunedModel[]
+  mlopsModels MlopsModel[]
+  experiments Experiment[]
+  teamMembers TeamMember[]
+  auditLogs AuditLog[]
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Brand {
+  id          String        @id @default(cuid())
+  workspaceId String
+  name        String
+  description String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile     BrandProfile?
+  posts       Post[]
+  aiTasks     AiTask[]
+  memoryEntries BrandMemoryEntry[]
+  contentPlans ContentPlan[]
+  imagePrompts ImagePrompt[]
+  videoScripts VideoScript[]
+  musicSuggestions MusicSuggestion[]
+  adCampaigns AdCampaign[]
+  swarmTasks SwarmTask[]
+  autopilotConfigs AutopilotConfig[]
+  autopilotRuns AutopilotRun[]
+  learningInsights LearningInsight[]
+  learningProfiles LearningProfile[]
+  finetuneDatasets FinetuneDataset[]
+  finetuneJobs FinetuneJob[]
+  finetunedModels FinetunedModel[]
+  mlopsModels MlopsModel[]
+
+  @@index([workspaceId])
+}
+
+model BrandProfile {
+  id               String   @id @default(cuid())
+  brandId          String   @unique
+  targetAudience   String
+  toneOfVoice      String
+  contentPillars   String[] @default([])
+  competitors      String[] @default([])
+  restrictedTopics String[] @default([])
+  approvedClaims   String[] @default([])
+  visualStyleNotes String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  brand            Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+}
+
+model AiTask {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  brandId       String?
+  userId        String?
+  type          String
+  status        AiTaskStatus @default(PENDING)
+  input         Json
+  output        Json?
+  error         String?
+  model         String?
+  promptVersion String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  completedAt   DateTime?
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand         Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  posts         Post[]
+
+  @@index([workspaceId, status])
+  @@index([brandId])
+  @@index([userId])
+}
+
+model BrandMemoryEntry {
+  id          String   @id @default(cuid())
+  workspaceId String
+  brandId     String
+  title       String
+  content     String
+  tags        String[] @default([])
+  source      String
+  score       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, brandId])
+  @@index([brandId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  workspaceId String
+  brandId     String
+  aiTaskId    String?
+  platform    String
+  status      PostStatus @default(DRAFT)
+  caption     String?
+  hashtags    String[]   @default([])
+  mediaUrls   String[]   @default([])
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand       Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  aiTask      AiTask?    @relation(fields: [aiTaskId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([brandId])
+  @@index([scheduledAt])
+}
+
+model SocialAccount {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  userId           String    @default("workspace-user")
+  platform         String
+  platformUserId   String    @default("")
+  username         String?
+  handle           String
+  displayName      String
+  connected        Boolean   @default(true)
+  connectedAt      DateTime  @default(now())
+  followerCount    Int       @default(0)
+  accessToken      String?
+  tokenExpiresAt   DateTime?
+  pageAccessToken  String?
+  scopes           String[]  @default([])
+  metadata         Json?
+  platformMetadata Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, platform, platformUserId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([platform, platformUserId])
+}
+
+model ContentPlan {
+  id        String            @id @default(cuid())
+  workspaceId String
+  brandId   String
+  name      String
+  platform  String
+  startDate String
+  endDate   String
+  postCount Int
+  themes    String[]          @default([])
+  status    ContentPlanStatus @default(DRAFT)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand     Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  items     ContentPlanItem[]
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model ContentPlanItem {
+  id            String                @id @default(cuid())
+  planId        String
+  day           Int
+  platform      String
+  topic         String
+  caption       String
+  hashtags      String[]              @default([])
+  scheduledDate String
+  status        ContentPlanItemStatus @default(IDEA)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  plan          ContentPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, day])
+}
+
+model Trend {
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  topic               String
+  platform            String?
+  category            String
+  score               Int
+  velocity            String
+  hashtags            String[] @default([])
+  relatedTopics       String[] @default([])
+  estimatedReach      Int
+  engagementPotential String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, score])
+  @@index([workspaceId, updatedAt])
+}
+
+model ImagePrompt {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  brandId        String
+  platform       String
+  topic          String
+  style          String
+  prompt         String
+  negativePrompt String
+  aspectRatio    String
+  status         String
+  imageUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model VideoScript {
+  id          String   @id @default(cuid())
+  workspaceId String
+  brandId     String
+  platform    String
+  topic       String
+  duration    Int
+  style       String
+  title       String
+  hook        String
+  scenes      Json
+  cta         String
+  hashtags    String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model MusicSuggestion {
+  id          String   @id @default(cuid())
+  workspaceId String
+  brandId     String
+  platform    String
+  mood        String
+  genre       String
+  tracks      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model AdCampaign {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  brandId        String
+  platform       String
+  objective      String
+  status         String
+  budget         Float
+  spent          Float
+  impressions    Int
+  clicks         Int
+  ctr            Float
+  cpc            Float
+  conversions    Int
+  targetAudience String
+  durationDays   Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  variants       AdVariant[]
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model AdVariant {
+  id           String @id @default(cuid())
+  campaignId   String
+  headline     String
+  body         String
+  cta          String
+  imageStyle   String
+  estimatedCtr String
+  campaign     AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model SwarmTask {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  brandId         String
+  type            String
+  status          String
+  priority        String
+  input           Json
+  output          Json?
+  agentCount      Int
+  completedAgents Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  agents          SwarmAgent[]
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model SwarmAgent {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  taskId        String
+  role          String
+  status        String
+  progress      Int
+  currentAction String
+  logs          String[] @default([])
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task          SwarmTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, taskId])
+  @@index([taskId])
+}
+
+model AutopilotConfig {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  brandId          String
+  enabled          Boolean  @default(true)
+  platforms        String[] @default([])
+  postsPerWeek     Int
+  preferredTimes   String[] @default([])
+  contentStyle     String
+  topicPreferences String[] @default([])
+  lastRanAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand            Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  runs             AutopilotRun[]
+
+  @@unique([workspaceId, brandId])
+  @@index([workspaceId])
+  @@index([brandId])
+}
+
+model AutopilotRun {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  brandId        String
+  configId       String
+  status         String
+  postsGenerated Int
+  postsScheduled Int
+  platforms      String[] @default([])
+  summary        String
+  createdAt      DateTime @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  config         AutopilotConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, configId, createdAt])
+  @@index([brandId])
+}
+
+model LearningInsight {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  brandId        String
+  platform       String?
+  type           String
+  title          String
+  description    String
+  confidence     Float
+  dataPoints     Int
+  recommendation String
+  createdAt      DateTime @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand          Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, brandId])
+  @@index([brandId, confidence])
+}
+
+model LearningProfile {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  brandId              String
+  bestPostingTimes     Json
+  topPerformingTopics  String[] @default([])
+  bestEngagingStyles   String[] @default([])
+  avgEngagementRate    Float
+  totalPostsAnalyzed   Int
+  improvementScore     Int
+  lastUpdatedAt        DateTime
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand                Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, brandId])
+  @@index([brandId])
+}
+
+model FinetuneDataset {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  brandId      String
+  name         String
+  description  String
+  exampleCount Int
+  fileSizeKb   Int
+  status       String
+  createdAt    DateTime @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand        Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  jobs         FinetuneJob[]
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+}
+
+model FinetuneJob {
+  id                        String   @id @default(cuid())
+  workspaceId               String
+  brandId                   String
+  datasetId                 String
+  jobName                   String
+  baseModel                 String
+  status                    String
+  progress                  Int
+  currentEpoch              Int
+  totalEpochs               Int
+  trainLoss                 Float?
+  valLoss                   Float?
+  accuracy                  Float?
+  estimatedSecondsRemaining Int?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  workspace                 Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand                     Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  dataset                   FinetuneDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  models                    FinetunedModel[]
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+  @@index([datasetId])
+}
+
+model FinetunedModel {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  brandId            String
+  jobId              String
+  name               String
+  baseModel          String
+  status             String
+  accuracy           Float
+  inferenceLatencyMs Int
+  totalInferences    Int
+  deployedAt         DateTime?
+  createdAt          DateTime @default(now())
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand              Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  job                FinetuneJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([brandId])
+  @@index([jobId])
+}
+
+model MlopsModel {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  name               String
+  version            String
+  stage              String
+  baseModel          String
+  accuracy           Float
+  inferenceLatencyMs Int
+  requestsPerDay     Int
+  errorRate          Float
+  brandId            String?
+  lastDeployedAt     DateTime?
+  createdAt          DateTime @default(now())
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brand              Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, stage])
+  @@index([brandId])
+}
+
+model Experiment {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String
+  status        String
+  modelCount    Int
+  bestAccuracy  Float?
+  bestLatencyMs Int?
+  metric        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String?
+  email       String
+  role        String
+  status      String
+  invitedAt   DateTime
+  joinedAt    DateTime?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userEmail   String
+  action      String
+  resource    String
+  resourceId  String?
+  details     String
+  ipAddress   String
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}

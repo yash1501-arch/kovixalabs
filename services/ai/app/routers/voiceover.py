@@ -4,7 +4,9 @@ import math
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
@@ -16,7 +18,7 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["voiceover"])
+router = APIRouter(prefix="/generate", tags=["voiceover"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/voiceover", response_model=VoiceoverResponse)

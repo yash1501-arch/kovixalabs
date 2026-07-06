@@ -1,6 +1,7 @@
 import { prisma } from "../db.js";
 import { ApiError } from "../utils/api-error.js";
 import { Prisma } from "@prisma/client";
+import { triggerWebhookEvent } from "./webhook-service.js";
 
 export async function listCampaigns(workspaceId: string) {
   return prisma.adCampaign.findMany({
@@ -8,6 +9,15 @@ export async function listCampaigns(workspaceId: string) {
     include: { variants: true },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function showCampaign(campaignId: string, workspaceId: string) {
+  const campaign = await prisma.adCampaign.findUnique({
+    where: { id: campaignId },
+    include: { variants: true },
+  });
+  if (!campaign || campaign.workspaceId !== workspaceId) throw new ApiError(404, "not_found", "Campaign not found.");
+  return campaign;
 }
 
 export async function createCampaign(input: {
@@ -45,17 +55,28 @@ export async function createCampaign(input: {
       },
     },
     include: { variants: true },
+  }).then(campaign => {
+    fireCampaignWebhook(campaign.id, input.workspaceId, "CAMPAIGN_CREATED");
+    return campaign;
   });
+}
+
+function fireCampaignWebhook(campaignId: string, workspaceId: string, event: string) {
+  prisma.adCampaign.findUnique({ where: { id: campaignId }, select: { status: true, platform: true, objective: true } }).then(campaign => {
+    if (campaign) triggerWebhookEvent(workspaceId, event, { campaignId, ...campaign });
+  }).catch(() => {});
 }
 
 export async function updateCampaign(campaignId: string, workspaceId: string, status: string) {
   const campaign = await prisma.adCampaign.findUnique({ where: { id: campaignId } });
   if (!campaign || campaign.workspaceId !== workspaceId) throw new ApiError(404, "not_found", "Campaign not found.");
-  return prisma.adCampaign.update({
+  const updated = await prisma.adCampaign.update({
     where: { id: campaignId },
     data: { status },
     include: { variants: true },
   });
+  fireCampaignWebhook(campaignId, workspaceId, "CAMPAIGN_STATUS_CHANGED");
+  return updated;
 }
 
 export async function deleteCampaign(campaignId: string, workspaceId: string) {

@@ -5,12 +5,14 @@ import os
 import tempfile
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.models.schemas import VideoRenderRequest, VideoRenderResponse
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["render"])
+router = APIRouter(prefix="/generate", tags=["render"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/render", response_model=VideoRenderResponse)

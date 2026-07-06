@@ -17,6 +17,7 @@ import {
 } from "../controllers/social-controller.js";
 import { auditSocialAccount } from "../controllers/audit-controller.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireWorkspaceAuth } from "../middleware/rbac.js";
 
 function asyncRoute(handler: RequestHandler): RequestHandler {
   return (request, response, next) => {
@@ -51,6 +52,6 @@ socialRouter.get("/accounts", requireAuth, asyncRoute(listAccounts));
 socialRouter.delete("/disconnect/:id", requireAuth, asyncRoute(disconnectAccount));
 
 /* ── Workspace-prefixed routes (frontend calls /v1/workspaces/:id/social-accounts) ── */
-socialRouter.get("/workspaces/:workspaceId/social-accounts", requireAuth, asyncRoute(listAccounts));
-socialRouter.get("/workspaces/:workspaceId/social-accounts/:id/audit", requireAuth, asyncRoute(auditSocialAccount));
-socialRouter.delete("/workspaces/:workspaceId/social-accounts/:id", requireAuth, asyncRoute(disconnectAccount));
+socialRouter.get("/workspaces/:workspaceId/social-accounts", ...requireWorkspaceAuth(), asyncRoute(listAccounts));
+socialRouter.get("/workspaces/:workspaceId/social-accounts/:id/audit", ...requireWorkspaceAuth(), asyncRoute(auditSocialAccount));
+socialRouter.delete("/workspaces/:workspaceId/social-accounts/:id", ...requireWorkspaceAuth(), asyncRoute(disconnectAccount));

@@ -1,7 +1,9 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.models.schemas import (
     ContentFeedbackRequest,
@@ -16,7 +18,7 @@ from app.services.llm import create_llm_provider
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/memory", tags=["memory"])
+router = APIRouter(prefix="/memory", tags=["memory"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/ingest", response_model=MemoryIngestResponse)
@@ -66,7 +68,13 @@ async def learn_from_content(request: ContentFeedbackRequest):
     as new brand memory entries, improving future generations.
     """
     try:
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
         insights = []
         entries_created = 0
 

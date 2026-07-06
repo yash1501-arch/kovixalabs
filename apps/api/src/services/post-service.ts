@@ -7,6 +7,7 @@ import { nowIso, toIso, toPrismaJson } from "./helpers.js";
 import { loadBrand } from "./brand-service.js";
 import { decryptToken } from "../utils/token-encryption.js";
 import { learnFromContent } from "./ai-client.js";
+import { triggerWebhookEvent } from "./webhook-service.js";
 import * as linkedin from "./linkedin-api.js";
 import * as twitter from "./twitter-api.js";
 import * as tiktok from "./tiktok-api.js";
@@ -47,6 +48,12 @@ export async function listPosts(workspaceId: string) {
   return posts.map(serializePost);
 }
 
+export async function getPost(workspaceId: string, postId: string) {
+  const post = await prisma.post.findFirst({ where: { id: postId, workspaceId } });
+  if (!post) return null;
+  return serializePost(post);
+}
+
 export async function createPost(workspaceId: string, input: any) {
   const brand = await loadBrand(input.brandId);
   if (brand.workspaceId !== workspaceId) {
@@ -67,6 +74,19 @@ export async function createPost(workspaceId: string, input: any) {
   return serializePost(post);
 }
 
+export async function updatePost(workspaceId: string, postId: string, input: { caption?: string; scheduledAt?: string | null }) {
+  const post = await prisma.post.findFirst({ where: { id: postId, workspaceId } });
+  if (!post) throw new ApiError(404, "not_found", "Post not found.");
+  const updated = await prisma.post.update({
+    where: { id: postId },
+    data: {
+      ...(input.caption !== undefined ? { caption: input.caption } : {}),
+      ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null } : {}),
+    },
+  });
+  return serializePost(updated);
+}
+
 export async function updatePostStatus(workspaceId: string, postId: string, input: { status: string; scheduledAt?: string }) {
   const post = await prisma.post.findFirst({ where: { id: postId, workspaceId } });
   if (!post) throw new ApiError(404, "not_found", "Post not found.");
@@ -80,7 +100,10 @@ export async function updatePostStatus(workspaceId: string, postId: string, inpu
   });
 
   if (input.status === "published") {
-    void publishPostToMeta(workspaceId, postId);
+    void publishPost(workspaceId, postId);
+  }
+  if (input.status === "scheduled") {
+    void triggerWebhookEvent(workspaceId, "POST_SCHEDULED", { postId, platform: post.platform, scheduledAt: input.scheduledAt });
   }
   return serializePost(updated);
 }
@@ -89,6 +112,7 @@ export async function deletePost(workspaceId: string, postId: string): Promise<v
   const post = await prisma.post.findFirst({ where: { id: postId, workspaceId }, select: { id: true } });
   if (!post) throw new ApiError(404, "not_found", "Post not found.");
   await prisma.post.delete({ where: { id: postId } });
+  void triggerWebhookEvent(workspaceId, "POST_DELETED", { postId });
 }
 
 export async function publishPostToMeta(workspaceId: string, postId: string): Promise<void> {
@@ -163,6 +187,12 @@ export async function publishPost(workspaceId: string, postId: string): Promise<
   const post = await prisma.post.findFirst({ where: { id: postId, workspaceId } });
   if (!post) { logger.warn({ postId }, "Post not found"); return; }
 
+  if (post.platform === "instagram-basic") {
+    logger.warn({ postId }, "Instagram Basic Display API is read-only; cannot publish.");
+    await prisma.post.update({ where: { id: postId }, data: { status: "FAILED" } });
+    return;
+  }
+
   if (["facebook", "instagram"].includes(post.platform)) {
     return publishPostToMeta(workspaceId, postId);
   }
@@ -202,9 +232,11 @@ export async function publishPost(workspaceId: string, postId: string): Promise<
     }
     await prisma.post.update({ where: { id: postId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
     void triggerLearning(post);
+    void triggerWebhookEvent(workspaceId, "POST_PUBLISHED", { postId: post.id, platform: post.platform, caption: post.caption });
   } catch (err: any) {
     logger.error({ err, postId, platform: post.platform }, `Live ${post.platform} publishing failed`);
     await prisma.post.update({ where: { id: postId }, data: { status: "FAILED" } });
+    void triggerWebhookEvent(workspaceId, "POST_FAILED", { postId: post.id, platform: post.platform, error: err?.message });
   }
 }
 

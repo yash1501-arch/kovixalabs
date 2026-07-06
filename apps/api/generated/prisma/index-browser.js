@@ -129,6 +129,15 @@ exports.Prisma.UserScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  usedAt: 'usedAt',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.UserSessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -137,10 +146,85 @@ exports.Prisma.UserSessionScalarFieldEnum = {
   expiresAt: 'expiresAt'
 };
 
+exports.Prisma.WebhookScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  url: 'url',
+  events: 'events',
+  secret: 'secret',
+  enabled: 'enabled',
+  description: 'description',
+  lastTriggeredAt: 'lastTriggeredAt',
+  lastStatus: 'lastStatus',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.WorkspaceScalarFieldEnum = {
   id: 'id',
   name: 'name',
   slug: 'slug',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AnalyticsRecordScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  postId: 'postId',
+  platform: 'platform',
+  date: 'date',
+  impressions: 'impressions',
+  reach: 'reach',
+  engagements: 'engagements',
+  likes: 'likes',
+  comments: 'comments',
+  shares: 'shares',
+  saves: 'saves',
+  clicks: 'clicks',
+  followerDelta: 'followerDelta',
+  source: 'source',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.WorkspaceBillingScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  plan: 'plan',
+  status: 'status',
+  seatsTotal: 'seatsTotal',
+  seatsUsed: 'seatsUsed',
+  amount: 'amount',
+  currency: 'currency',
+  interval: 'interval',
+  nextBillingAt: 'nextBillingAt',
+  paymentMethod: 'paymentMethod',
+  paymentLast4: 'paymentLast4',
+  paymentBrand: 'paymentBrand',
+  aiGenerationLimit: 'aiGenerationLimit',
+  aiGenerationUsed: 'aiGenerationUsed',
+  apiCallLimit: 'apiCallLimit',
+  apiCallUsed: 'apiCallUsed',
+  storageLimitMb: 'storageLimitMb',
+  storageUsedMb: 'storageUsedMb',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.BrandMemoryDocumentScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  title: 'title',
+  content: 'content',
+  sourceType: 'sourceType',
+  mimeType: 'mimeType',
+  fileSize: 'fileSize',
+  chunkCount: 'chunkCount',
+  embedded: 'embedded',
+  tags: 'tags',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -222,6 +306,19 @@ exports.Prisma.PostScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PostTemplateScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  platform: 'platform',
+  name: 'name',
+  caption: 'caption',
+  hashtags: 'hashtags',
+  mediaUrls: 'mediaUrls',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SocialAccountScalarFieldEnum = {
   id: 'id',
   workspaceId: 'workspaceId',
@@ -235,6 +332,7 @@ exports.Prisma.SocialAccountScalarFieldEnum = {
   connectedAt: 'connectedAt',
   followerCount: 'followerCount',
   accessToken: 'accessToken',
+  refreshToken: 'refreshToken',
   tokenExpiresAt: 'tokenExpiresAt',
   pageAccessToken: 'pageAccessToken',
   scopes: 'scopes',
@@ -547,17 +645,149 @@ exports.Prisma.AuditLogScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.MediaAssetScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  type: 'type',
+  status: 'status',
+  url: 'url',
+  thumbnailUrl: 'thumbnailUrl',
+  fileName: 'fileName',
+  mimeType: 'mimeType',
+  fileSize: 'fileSize',
+  width: 'width',
+  height: 'height',
+  duration: 'duration',
+  altText: 'altText',
+  metadata: 'metadata',
+  prompt: 'prompt',
+  model: 'model',
+  tags: 'tags',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.FaceSwapJobScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  sourceImageUrl: 'sourceImageUrl',
+  targetImageUrl: 'targetImageUrl',
+  resultUrl: 'resultUrl',
+  status: 'status',
+  model: 'model',
+  parameters: 'parameters',
+  error: 'error',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.VideoProjectScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  title: 'title',
+  description: 'description',
+  scriptId: 'scriptId',
+  script: 'script',
+  scenes: 'scenes',
+  style: 'style',
+  duration: 'duration',
+  resolution: 'resolution',
+  platform: 'platform',
+  status: 'status',
+  renderedUrl: 'renderedUrl',
+  thumbnailUrl: 'thumbnailUrl',
+  voiceoverUrl: 'voiceoverUrl',
+  musicTrack: 'musicTrack',
+  hashtags: 'hashtags',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.VideoFaceSwapJobScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  sourceFaceUrl: 'sourceFaceUrl',
+  targetVideoUrl: 'targetVideoUrl',
+  resultUrl: 'resultUrl',
+  status: 'status',
+  parameters: 'parameters',
+  error: 'error',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  completedAt: 'completedAt'
+};
+
+exports.Prisma.NewsSourceScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  name: 'name',
+  url: 'url',
+  type: 'type',
+  category: 'category',
+  active: 'active',
+  scrapeInterval: 'scrapeInterval',
+  lastScrapedAt: 'lastScrapedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.NewsArticleScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  brandId: 'brandId',
+  sourceId: 'sourceId',
+  title: 'title',
+  url: 'url',
+  content: 'content',
+  summary: 'summary',
+  author: 'author',
+  publishedAt: 'publishedAt',
+  imageUrl: 'imageUrl',
+  category: 'category',
+  keywords: 'keywords',
+  relevanceScore: 'relevanceScore',
+  sentiment: 'sentiment',
+  read: 'read',
+  saved: 'saved',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.LlmModelScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  provider: 'provider',
+  name: 'name',
+  model: 'model',
+  apiKey: 'apiKey',
+  baseUrl: 'baseUrl',
+  capabilities: 'capabilities',
+  isDefault: 'isDefault',
+  maxTokens: 'maxTokens',
+  temperature: 'temperature',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
 };
 
-exports.Prisma.JsonNullValueInput = {
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull
 };
 
-exports.Prisma.NullableJsonNullValueInput = {
-  DbNull: Prisma.DbNull,
+exports.Prisma.JsonNullValueInput = {
   JsonNull: Prisma.JsonNull
 };
 
@@ -576,6 +806,15 @@ exports.Prisma.JsonNullValueFilter = {
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
 };
+exports.WebhookEvent = exports.$Enums.WebhookEvent = {
+  POST_PUBLISHED: 'POST_PUBLISHED',
+  POST_SCHEDULED: 'POST_SCHEDULED',
+  POST_FAILED: 'POST_FAILED',
+  POST_DELETED: 'POST_DELETED',
+  CAMPAIGN_CREATED: 'CAMPAIGN_CREATED',
+  CAMPAIGN_STATUS_CHANGED: 'CAMPAIGN_STATUS_CHANGED'
+};
+
 exports.WorkspaceRole = exports.$Enums.WorkspaceRole = {
   OWNER: 'OWNER',
   ADMIN: 'ADMIN',
@@ -614,16 +853,40 @@ exports.ContentPlanItemStatus = exports.$Enums.ContentPlanItemStatus = {
   PUBLISHED: 'PUBLISHED'
 };
 
+exports.MediaType = exports.$Enums.MediaType = {
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  AUDIO: 'AUDIO',
+  FACE_SWAP: 'FACE_SWAP',
+  VIDEO_FACE_SWAP: 'VIDEO_FACE_SWAP',
+  DOCUMENT: 'DOCUMENT',
+  OTHER: 'OTHER'
+};
+
+exports.MediaStatus = exports.$Enums.MediaStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  REJECTED: 'REJECTED'
+};
+
 exports.Prisma.ModelName = {
   User: 'User',
+  PasswordResetToken: 'PasswordResetToken',
   UserSession: 'UserSession',
+  Webhook: 'Webhook',
   Workspace: 'Workspace',
+  AnalyticsRecord: 'AnalyticsRecord',
+  WorkspaceBilling: 'WorkspaceBilling',
+  BrandMemoryDocument: 'BrandMemoryDocument',
   WorkspaceMember: 'WorkspaceMember',
   Brand: 'Brand',
   BrandProfile: 'BrandProfile',
   AiTask: 'AiTask',
   BrandMemoryEntry: 'BrandMemoryEntry',
   Post: 'Post',
+  PostTemplate: 'PostTemplate',
   SocialAccount: 'SocialAccount',
   ContentPlan: 'ContentPlan',
   ContentPlanItem: 'ContentPlanItem',
@@ -645,7 +908,14 @@ exports.Prisma.ModelName = {
   MlopsModel: 'MlopsModel',
   Experiment: 'Experiment',
   TeamMember: 'TeamMember',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  MediaAsset: 'MediaAsset',
+  FaceSwapJob: 'FaceSwapJob',
+  VideoProject: 'VideoProject',
+  VideoFaceSwapJob: 'VideoFaceSwapJob',
+  NewsSource: 'NewsSource',
+  NewsArticle: 'NewsArticle',
+  LlmModel: 'LlmModel'
 };
 
 /**

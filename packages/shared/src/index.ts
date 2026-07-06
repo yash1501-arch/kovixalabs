@@ -858,3 +858,305 @@ export const AuditLogRecordSchema = z.object({
   createdAt: z.string().datetime()
 });
 export type AuditLogRecord = z.infer<typeof AuditLogRecordSchema>;
+
+// ─── MEDIA ASSETS ─────────────────────────────────────────────
+export const MediaTypeSchema = z.enum(["IMAGE", "VIDEO", "AUDIO", "FACE_SWAP", "VIDEO_FACE_SWAP", "DOCUMENT", "OTHER"]);
+export type MediaType = z.infer<typeof MediaTypeSchema>;
+
+export const MediaStatusSchema = z.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED", "REJECTED"]);
+export type MediaStatus = z.infer<typeof MediaStatusSchema>;
+
+export const MediaAssetSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  type: MediaTypeSchema,
+  status: MediaStatusSchema,
+  url: z.string().nullable().optional(),
+  thumbnailUrl: z.string().nullable().optional(),
+  fileName: z.string().nullable().optional(),
+  mimeType: z.string().nullable().optional(),
+  fileSize: z.number().int().nullable().optional(),
+  width: z.number().int().nullable().optional(),
+  height: z.number().int().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  altText: z.string().nullable().optional(),
+  metadata: z.record(z.any()).nullable().optional(),
+  prompt: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type MediaAsset = z.infer<typeof MediaAssetSchema>;
+
+export const MediaAssetCreateSchema = z.object({
+  brandId: z.string().min(1),
+  type: MediaTypeSchema,
+  url: z.string().optional(),
+  thumbnailUrl: z.string().optional(),
+  fileName: z.string().optional(),
+  mimeType: z.string().optional(),
+  fileSize: z.number().int().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional(),
+  duration: z.number().optional(),
+  altText: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+  prompt: z.string().optional(),
+  model: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+});
+export type MediaAssetCreate = z.infer<typeof MediaAssetCreateSchema>;
+
+// ─── FACE SWAP ────────────────────────────────────────────────
+export const FaceSwapJobSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  sourceImageUrl: z.string(),
+  targetImageUrl: z.string(),
+  resultUrl: z.string().nullable().optional(),
+  status: MediaStatusSchema,
+  model: z.string(),
+  parameters: z.record(z.any()).nullable().optional(),
+  error: z.string().nullable().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable().optional(),
+});
+export type FaceSwapJob = z.infer<typeof FaceSwapJobSchema>;
+
+export const FaceSwapJobCreateSchema = z.object({
+  brandId: z.string().min(1),
+  sourceImageUrl: z.string(),
+  targetImageUrl: z.string(),
+  parameters: z.record(z.any()).optional(),
+});
+export type FaceSwapJobCreate = z.infer<typeof FaceSwapJobCreateSchema>;
+
+// ─── VIDEO PROJECT ────────────────────────────────────────────
+export const VideoProjectSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  title: z.string(),
+  description: z.string().nullable().optional(),
+  scriptId: z.string().nullable().optional(),
+  script: z.string().nullable().optional(),
+  scenes: z.array(z.any()).nullable().optional(),
+  style: z.string().nullable().optional(),
+  duration: z.number().int().nullable().optional(),
+  resolution: z.string().nullable().optional(),
+  platform: z.string().nullable().optional(),
+  status: MediaStatusSchema,
+  renderedUrl: z.string().nullable().optional(),
+  thumbnailUrl: z.string().nullable().optional(),
+  voiceoverUrl: z.string().nullable().optional(),
+  musicTrack: z.string().nullable().optional(),
+  hashtags: z.array(z.string()).default([]),
+  metadata: z.record(z.any()).nullable().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable().optional(),
+});
+export type VideoProject = z.infer<typeof VideoProjectSchema>;
+
+export const VideoProjectCreateSchema = z.object({
+  brandId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  script: z.string().optional(),
+  scenes: z.array(z.any()).optional(),
+  style: z.string().optional(),
+  duration: z.number().int().optional(),
+  resolution: z.string().optional(),
+  platform: z.string().optional(),
+  hashtags: z.array(z.string()).default([]),
+});
+export type VideoProjectCreate = z.infer<typeof VideoProjectCreateSchema>;
+
+// ─── VIDEO FACE SWAP ──────────────────────────────────────────
+export const VideoFaceSwapJobSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  sourceFaceUrl: z.string(),
+  targetVideoUrl: z.string(),
+  resultUrl: z.string().nullable().optional(),
+  status: MediaStatusSchema,
+  parameters: z.record(z.any()).nullable().optional(),
+  error: z.string().nullable().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable().optional(),
+});
+export type VideoFaceSwapJob = z.infer<typeof VideoFaceSwapJobSchema>;
+
+export const VideoFaceSwapJobCreateSchema = z.object({
+  brandId: z.string().min(1),
+  sourceFaceUrl: z.string(),
+  targetVideoUrl: z.string(),
+  parameters: z.record(z.any()).optional(),
+});
+export type VideoFaceSwapJobCreate = z.infer<typeof VideoFaceSwapJobCreateSchema>;
+
+// ─── NEWS SOURCE ──────────────────────────────────────────────
+export const NewsSourceSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  name: z.string(),
+  url: z.string(),
+  type: z.string(),
+  category: z.string().nullable().optional(),
+  active: z.boolean(),
+  scrapeInterval: z.number().int().nullable().optional(),
+  lastScrapedAt: z.string().datetime().nullable().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type NewsSource = z.infer<typeof NewsSourceSchema>;
+
+export const NewsSourceCreateSchema = z.object({
+  brandId: z.string().min(1),
+  name: z.string().min(1),
+  url: z.string().url(),
+  type: z.string().default("RSS"),
+  category: z.string().optional(),
+  scrapeInterval: z.number().int().optional(),
+});
+export type NewsSourceCreate = z.infer<typeof NewsSourceCreateSchema>;
+
+// ─── NEWS ARTICLE ─────────────────────────────────────────────
+export const NewsArticleSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  brandId: z.string().min(1),
+  sourceId: z.string().min(1),
+  title: z.string(),
+  url: z.string(),
+  content: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  author: z.string().nullable().optional(),
+  publishedAt: z.string().datetime().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  keywords: z.array(z.string()).default([]),
+  relevanceScore: z.number().nullable().optional(),
+  sentiment: z.string().nullable().optional(),
+  read: z.boolean(),
+  saved: z.boolean(),
+  createdAt: z.string().datetime(),
+});
+export type NewsArticle = z.infer<typeof NewsArticleSchema>;
+
+export const NewsArticleCreateSchema = z.object({
+  sourceId: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().url(),
+  content: z.string().optional(),
+  summary: z.string().optional(),
+  author: z.string().optional(),
+  publishedAt: z.string().optional(),
+  imageUrl: z.string().optional(),
+  category: z.string().optional(),
+  keywords: z.array(z.string()).default([]),
+});
+export type NewsArticleCreate = z.infer<typeof NewsArticleCreateSchema>;
+
+export const LlmModelSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  provider: z.string(),
+  name: z.string(),
+  model: z.string(),
+  apiKey: z.string().nullable().optional(),
+  baseUrl: z.string().nullable().optional(),
+  capabilities: z.array(z.string()).default([]),
+  isDefault: z.boolean(),
+  maxTokens: z.number().int(),
+  temperature: z.number(),
+  enabled: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type LlmModel = z.infer<typeof LlmModelSchema>;
+
+export const LlmModelCreateSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "google", "openrouter", "local", "custom"]),
+  name: z.string().min(1).max(100),
+  model: z.string().min(1),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  capabilities: z.array(z.string()).default(["chat"]),
+  isDefault: z.boolean().default(false),
+  maxTokens: z.number().int().min(1).max(128000).default(4096),
+  temperature: z.number().min(0).max(2).default(0.7),
+});
+export type LlmModelCreate = z.infer<typeof LlmModelCreateSchema>;
+
+export const LlmModelUpdateSchema = LlmModelCreateSchema.partial().omit({ provider: true });
+export type LlmModelUpdate = z.infer<typeof LlmModelUpdateSchema>;
+
+export const PostTemplateSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  brandId: z.string().nullable(),
+  platform: z.string(),
+  name: z.string(),
+  caption: z.string(),
+  hashtags: z.array(z.string()),
+  mediaUrls: z.array(z.string()),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type PostTemplate = z.infer<typeof PostTemplateSchema>;
+
+export const PostTemplateCreateSchema = z.object({
+  brandId: z.string().optional(),
+  platform: z.string(),
+  name: z.string().min(1).max(200),
+  caption: z.string().max(2200).default(""),
+  hashtags: z.array(z.string()).default([]),
+  mediaUrls: z.array(z.string()).default([]),
+});
+export type PostTemplateCreate = z.infer<typeof PostTemplateCreateSchema>;
+
+const WebhookEventEnum = z.enum([
+  "POST_PUBLISHED", "POST_SCHEDULED", "POST_FAILED", "POST_DELETED",
+  "CAMPAIGN_CREATED", "CAMPAIGN_STATUS_CHANGED",
+]);
+
+export const WebhookSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  url: z.string().url(),
+  events: z.array(WebhookEventEnum),
+  secret: z.string().nullable(),
+  enabled: z.boolean(),
+  description: z.string().nullable(),
+  lastTriggeredAt: z.string().datetime().nullable(),
+  lastStatus: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Webhook = z.infer<typeof WebhookSchema>;
+
+export const WebhookCreateSchema = z.object({
+  url: z.string().url(),
+  events: z.array(WebhookEventEnum).min(1),
+  secret: z.string().optional(),
+  enabled: z.boolean().default(true),
+  description: z.string().optional(),
+});
+export type WebhookCreate = z.infer<typeof WebhookCreateSchema>;
+
+export const WebhookUpdateSchema = z.object({
+  url: z.string().url().optional(),
+  events: z.array(WebhookEventEnum).min(1).optional(),
+  secret: z.string().optional(),
+  enabled: z.boolean().optional(),
+  description: z.string().optional(),
+});
+export type WebhookUpdate = z.infer<typeof WebhookUpdateSchema>;

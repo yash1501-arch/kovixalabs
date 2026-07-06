@@ -1,7 +1,9 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.models.schemas import (
     BatchContentRequest,
@@ -16,13 +18,19 @@ from app.services.prompts import build_caption_messages
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["batch"])
+router = APIRouter(prefix="/generate", tags=["batch"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/batch", response_model=BatchContentResponse)
 async def generate_batch(request: BatchContentRequest):
     try:
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
         provider = create_embedding_provider()
         brand_memory_texts: list[str] = []
 

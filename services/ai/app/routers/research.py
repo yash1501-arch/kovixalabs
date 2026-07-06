@@ -1,7 +1,10 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
+from pydantic import BaseModel, Field
 
 from app.models.schemas import (
     EngagementAnalysisRequest,
@@ -12,6 +15,7 @@ from app.models.schemas import (
     HashtagResearchRequest,
     HashtagResearchResponse,
     HashtagPool,
+    ModelOverride,
     PerformanceInsight,
 )
 from app.services.embeddings import create_embedding_provider
@@ -19,13 +23,19 @@ from app.services.llm import create_llm_provider
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/research", tags=["research"])
+router = APIRouter(prefix="/research", tags=["research"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/hashtags", response_model=HashtagResearchResponse)
 async def research_hashtags(request: HashtagResearchRequest):
     try:
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
         hashtags_str = ", ".join(request.hashtags) if request.hashtags else "No existing hashtags provided"
 
         prompt = f"""You are AISMOS's hashtag research analyst. Analyze hashtags for {request.platform}.
@@ -96,7 +106,13 @@ async def recharge_hashtags(request: HashtagRechargeRequest):
             )
             brand_context = "\n".join(f"[{r['title']}] {r['content']}" for r in results)
 
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
         current = ", ".join(request.current_hashtags) if request.current_hashtags else "None yet"
 
         prompt = f"""You are AISMOS's hashtag strategist. Generate a refreshed hashtag pool for {request.platform}.
@@ -107,11 +123,11 @@ Brand context:
 {brand_context or "No brand context."}
 
 Generate {request.count} hashtags organized into these pools:
-1. **primary** — high-volume, broad reach (2-4)
-2. **secondary** — mid-volume, targeted (3-6)
-3. **niche** — low-volume, highly specific (2-4)
-4. **branded** — custom brand hashtags (1-3)
-5. **seasonal** — timely/trending hashtags (1-3)
+1. **primary** - high-volume, broad reach (2-4)
+2. **secondary** - mid-volume, targeted (3-6)
+3. **niche** - low-volume, highly specific (2-4)
+4. **branded** - custom brand hashtags (1-3)
+5. **seasonal** - timely/trending hashtags (1-3)
 
 Also identify which current hashtags are deprecated and should be dropped.
 
@@ -155,7 +171,13 @@ async def analyze_engagement(request: EngagementAnalysisRequest):
         for r in request.records:
             records_text += f"Post {r.post_id} ({r.platform}): ❤️{r.likes} 💬{r.comments} 🔄{r.shares} 👁️{r.impressions} 📈{r.engagement_rate}%\n"
 
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
 
         prompt = f"""You are AISMOS's performance analyst. Analyze these engagement records for brand {request.brand_id}.
 
@@ -164,10 +186,10 @@ Records ({len(request.records)} total):
 {records_text}
 
 Extract actionable insights:
-1. **Best posting times** — what times/days get highest engagement
-2. **Best content types** — what topics/formats perform best
-3. **Hashtag performance** — which hashtags drive engagement
-4. **Engagement patterns** — trends across the data
+1. **Best posting times** - what times/days get highest engagement
+2. **Best content types** - what topics/formats perform best
+3. **Hashtag performance** - which hashtags drive engagement
+4. **Engagement patterns** - trends across the data
 
 Return JSON with:
 - "insights": array of {{
@@ -210,4 +232,98 @@ Return JSON with:
 
     except Exception as e:
         logger.exception("Engagement analysis failed")
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+class SocialProfileResearchRequest(BaseModel):
+    platform: str
+    display_name: str
+    username: str | None = None
+    follower_count: int = 0
+    bio: str | None = None
+    description: str | None = None
+    media_count: int | None = None
+    video_count: int | None = None
+    view_count: int | None = None
+    website: str | None = None
+    model_override: ModelOverride | None = None
+
+
+class ProfileInsight(BaseModel):
+    category: str
+    finding: str
+
+
+class SocialProfileResearchResponse(BaseModel):
+    profile_summary: str
+    audience_description: str
+    content_themes: list[str]
+    suggested_brand_voice: str
+    suggested_hashtags: list[str]
+    insights: list[ProfileInsight]
+
+
+@router.post("/social-profile", response_model=SocialProfileResearchResponse)
+async def research_social_profile(request: SocialProfileResearchRequest):
+    try:
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
+
+        prompt = f"""You are AISMOS's brand intelligence analyst. Analyze this social media profile and extract brand-relevant insights.
+
+Platform: {request.platform}
+Display Name: {request.display_name}
+Username: {request.username or "N/A"}
+Followers: {request.follower_count}
+Bio: {request.bio or "N/A"}
+Description: {request.description or "N/A"}
+Media Count: {request.media_count or "N/A"}
+Video Count: {request.video_count or "N/A"}
+View Count: {request.view_count or "N/A"}
+Website: {request.website or "N/A"}
+
+Based on this profile information, generate brand-relevant insights that would be useful for:
+- Content strategy and ideation
+- Understanding the audience
+- Maintaining consistent brand voice
+- Hashtag and topic selection
+
+Return JSON with:
+- "profile_summary": 2-3 sentence summary of what this account/content represents
+- "audience_description": 1-2 sentence description of the likely audience
+- "content_themes": array of 3-6 content themes/topics this account covers
+- "suggested_brand_voice": description of the brand voice based on the profile
+- "suggested_hashtags": array of 5-10 hashtags relevant to this profile
+- "insights": array of {{ "category": string, "finding": string }} with 3-5 key brand insights"""
+
+        result = await llm.chat_json(
+            messages=[
+                {"role": "system", "content": "You are a brand intelligence analyst. Always respond in valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.4,
+        )
+
+        raw_insights = result.get("insights", [])
+        insights = [
+            ProfileInsight(category=i.get("category", "general"), finding=i.get("finding", ""))
+            for i in raw_insights
+        ]
+
+        return SocialProfileResearchResponse(
+            profile_summary=result.get("profile_summary", ""),
+            audience_description=result.get("audience_description", ""),
+            content_themes=result.get("content_themes", []),
+            suggested_brand_voice=result.get("suggested_brand_voice", ""),
+            suggested_hashtags=result.get("suggested_hashtags", []),
+            insights=insights,
+        )
+
+    except Exception as e:
+        logger.exception("Social profile research failed")
         raise HTTPException(status_code=502, detail=str(e)) from e

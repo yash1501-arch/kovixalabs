@@ -19,6 +19,7 @@ export type JobHandler<T = unknown> = (job: Job<T>) => Promise<void>;
 export class JobQueue {
   private readonly queueKey: string;
   private readonly processingKey: string;
+  private readonly failedKey: string;
   private running = false;
 
   constructor(
@@ -29,6 +30,7 @@ export class JobQueue {
   ) {
     this.queueKey = `queue:${name}`;
     this.processingKey = `queue:${name}:processing`;
+    this.failedKey = `queue:${name}:failed`;
   }
 
   async enqueue<T>(type: string, data: T): Promise<string> {
@@ -106,7 +108,8 @@ export class JobQueue {
       if (job.attempts < job.maxAttempts) {
         await this.redis.lPush(this.queueKey, JSON.stringify(job));
       } else {
-        logger.error({ jobId: job.id, type: job.type, queue: this.name }, "Job exhausted all retries");
+        await this.redis.rPush(this.failedKey, JSON.stringify(job));
+        logger.error({ jobId: job.id, type: job.type, queue: this.name }, "Job exhausted all retries — moved to failed queue");
       }
     }
   }

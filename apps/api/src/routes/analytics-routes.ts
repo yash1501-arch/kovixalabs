@@ -7,6 +7,7 @@ import {
   hashtagRecharge,
 } from "../controllers/analytics-controller.js";
 import { optionalAuth, requireAuth } from "../middleware/auth.js";
+import { requireWorkspaceAuth } from "../middleware/rbac.js";
 
 function asyncRoute(handler: RequestHandler): RequestHandler {
   return (request, response, next) => {
@@ -16,7 +17,7 @@ function asyncRoute(handler: RequestHandler): RequestHandler {
 
 export const analyticsRouter = Router();
 
-analyticsRouter.get("/workspaces/:workspaceId/stats", optionalAuth, asyncRoute(workspaceStats));
+analyticsRouter.get("/workspaces/:workspaceId/stats", ...requireWorkspaceAuth(), asyncRoute(workspaceStats));
 analyticsRouter.get("/brands/:brandId/performance", optionalAuth, asyncRoute(brandPerformance));
 analyticsRouter.get("/brands/:brandId/engagement", optionalAuth, asyncRoute(brandEngagement));
 analyticsRouter.post("/brands/:brandId/research/hashtags", requireAuth, asyncRoute(hashtagResearch));

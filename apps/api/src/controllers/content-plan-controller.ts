@@ -14,13 +14,12 @@ const ItemParams = z.object({ itemId: z.string().min(1) });
 
 const PlanCreateSchema = z.object({
   name: z.string().min(1).max(255),
-  description: z.string().optional(),
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
-  brandId: z.string().min(1).optional(),
-  goals: z.array(z.string()).optional(),
-  platforms: z.array(z.enum(["instagram", "facebook", "twitter", "linkedin", "tiktok", "youtube"])).optional(),
-  targetAudience: z.string().optional(),
+  brandId: z.string().min(1),
+  platform: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  postCount: z.coerce.number().int().min(1).max(365),
+  themes: z.array(z.string()).default([]),
 });
 
 const ItemStatusSchema = z.object({

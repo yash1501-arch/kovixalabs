@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { ApiError } from "../utils/api-error.js";
 import { sendPaginated, sendSuccess } from "../utils/response.js";
 import { parsePagination } from "../utils/pagination.js";
 import { listTeamMembers as listMembersSvc, seedTeamMembers as seedMembersSvc, inviteTeamMember as inviteMemberSvc, updateTeamMemberRole, removeTeamMember as removeMemberSvc, getAuditLogs as getAuditLogsSvc } from "../services/enterprise-service.js";
+import { getOrCreateBilling, getWorkspaceUsage } from "../services/billing-service.js";
 import { prisma } from "../db.js";
 
 const WorkspaceParams = z.object({ workspaceId: z.string().min(1) });
@@ -39,28 +39,33 @@ export async function removeTeamMember(request: Request, response: Response) {
 
 export async function getBilling(request: Request, response: Response) {
   const { workspaceId } = WorkspaceParams.parse(request.params);
+  const billing = await getOrCreateBilling(workspaceId);
   sendSuccess(response, {
-    workspaceId, plan: "team", status: "active", seats: { total: 10, used: 4 },
-    billing: { amount: 79900, currency: "usd", interval: "annual", nextBillingDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0] },
-    paymentMethod: { type: "card", last4: "4242", brand: "visa" },
+    workspaceId,
+    plan: billing?.plan ?? "team",
+    status: billing?.status ?? "active",
+    seats: { total: billing?.seatsTotal ?? 10, used: billing?.seatsUsed ?? 1 },
+    billing: {
+      amount: billing?.amount ?? 0,
+      currency: billing?.currency ?? "usd",
+      interval: billing?.interval ?? "monthly",
+      nextBillingDate: billing?.nextBillingAt?.toISOString().split("T")[0] ?? null,
+    },
+    paymentMethod: billing?.paymentMethod
+      ? { type: billing.paymentMethod, last4: billing.paymentLast4, brand: billing.paymentBrand }
+      : null,
   });
 }
 
 export async function getUsage(request: Request, response: Response) {
   const { workspaceId } = WorkspaceParams.parse(request.params);
-  const posts = await prisma.post.findMany({ where: { workspaceId } });
-  sendSuccess(response, {
-    workspaceId, period: { start: new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0], end: new Date().toISOString().split("T")[0] },
-    posts: { scheduled: posts.filter((p) => p.status === "SCHEDULED").length, published: posts.filter((p) => p.status === "PUBLISHED").length, total: posts.length },
-    aiGenerations: { used: Math.floor(150 + Math.random() * 350), limit: 1000 },
-    apiCalls: { used: Math.floor(5000 + Math.random() * 5000), limit: 50000 },
-    storage: { used: Math.floor(200 + Math.random() * 800), limit: 5000 },
-  });
+  const usage = await getWorkspaceUsage(workspaceId);
+  sendSuccess(response, usage);
 }
 
 export async function getAuditLogs(request: Request, response: Response) {
   const { workspaceId } = WorkspaceParams.parse(request.params);
-  const userEmail = (request.headers["x-user-email"] as string | undefined) ?? "user@example.com";
+  const userEmail = request.user?.email ?? "unknown@example.com";
   const allLogs = await getAuditLogsSvc(workspaceId, userEmail);
   const { page, limit } = parsePagination(request.query as Record<string, string | undefined>);
   sendPaginated(response, allLogs.slice((page - 1) * limit, page * limit), page, limit, allLogs.length);

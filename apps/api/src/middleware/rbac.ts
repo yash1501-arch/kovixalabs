@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { requireAuth } from "./auth.js";
 
 export const ROLES = { viewer: 0, editor: 1, admin: 2, owner: 3 } as const;
 
@@ -38,4 +39,8 @@ export function requireWorkspaceAccess(workspaceIdParam = "workspaceId") {
 
     next();
   };
+}
+
+export function requireWorkspaceAuth(workspaceIdParam = "workspaceId") {
+  return [requireAuth, requireWorkspaceAccess(workspaceIdParam)];
 }

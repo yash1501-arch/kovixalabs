@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { ApiError } from "../utils/api-error.js";
 import { listDatasets as listDatasetsSvc, createDataset as createDatasetSvc, deleteDataset as deleteDatasetSvc, listJobs as listJobsSvc, createJob as createJobSvc, listModels as listModelsSvc, deployModel as deployModelSvc } from "../services/finetune-service.js";
+import { createFinetuneJob } from "../services/ai-client.js";
 
 const WorkspaceParams = z.object({ workspaceId: z.string().min(1) });
 const DatasetParams = z.object({ datasetId: z.string().min(1) });
@@ -14,7 +15,7 @@ const CreateDatasetBody = z.object({
 
 const CreateJobBody = z.object({
   brandId: z.string().min(1), datasetId: z.string().min(1), jobName: z.string().min(1),
-  baseModel: z.enum(["aismos-base-v1", "aismos-caption-v2", "aismos-hashtag-v1", "aismos-tone-v3"]),
+  baseModel: z.string().min(1),
   totalEpochs: z.number().int().min(1).max(20).default(5),
 });
 
@@ -46,7 +47,25 @@ export async function listJobs(request: Request, response: Response) {
 export async function createJob(request: Request, response: Response) {
   const { workspaceId } = WorkspaceParams.parse(request.params);
   const body = CreateJobBody.parse(request.body);
-  const result = await createJobSvc({ workspaceId, ...body });
+
+  const aiResult = await createFinetuneJob({
+    workspace_id: workspaceId,
+    brand_id: body.brandId,
+    job_name: body.jobName,
+    base_model: body.baseModel,
+    epochs: body.totalEpochs,
+    workspaceId,
+  });
+
+  const result = await createJobSvc({
+    workspaceId,
+    brandId: body.brandId,
+    datasetId: body.datasetId,
+    jobName: body.jobName,
+    baseModel: aiResult.trained_model,
+    totalEpochs: body.totalEpochs,
+  });
+
   response.status(201).json(result);
 }
 

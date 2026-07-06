@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from "express";
-import { register, login, me, logout, refreshToken } from "../controllers/auth-controller.js";
+import { register, login, me, logout, refreshToken, forgotPassword, handleResetPassword, handleUpdateProfile, handleChangePassword, handleUpdateWorkspace } from "../controllers/auth-controller.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
 import { env } from "../config.js";
 
@@ -24,9 +24,14 @@ export const authRouter = Router();
 
 authRouter.post("/register", asyncRoute(register));
 authRouter.post("/login", asyncRoute(login));
+authRouter.post("/forgot-password", asyncRoute(forgotPassword));
+authRouter.post("/reset-password", asyncRoute(handleResetPassword));
 authRouter.get("/me", optionalAuth, asyncRoute(me));
 authRouter.post("/refresh", asyncRoute(refreshToken));
 authRouter.post("/logout", requireAuth, asyncRoute(logout));
+authRouter.patch("/profile", requireAuth, asyncRoute(handleUpdateProfile));
+authRouter.post("/change-password", requireAuth, asyncRoute(handleChangePassword));
+authRouter.patch("/workspaces/:workspaceId", requireAuth, asyncRoute(handleUpdateWorkspace));
 
 /* ── Frontend OAuth platform connect (redirects to real social route) ── */
 authRouter.get("/platforms/:platform/connect", (req, res) => {

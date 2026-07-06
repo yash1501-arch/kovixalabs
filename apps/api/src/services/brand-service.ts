@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { BrandMemoryEntryRecordSchema, BrandRecordSchema } from "@kovixalabs/shared";
 import { prisma } from "../db.js";
 import { ApiError } from "../utils/api-error.js";
-import { deleteMemory, ingestMemory, searchBrandMemory } from "./ai-client.js";
+import { deleteMemory, ingestDocument as aiIngestDocument, ingestMemory, searchBrandMemory, summarizeDocument as aiSummarizeDocument } from "./ai-client.js";
 
 type BrandWithProfile = Prisma.BrandGetPayload<{ include: { profile: true } }>;
 type PrismaBrandMemoryEntryRecord = Prisma.BrandMemoryEntryGetPayload<Record<string, never>>;
@@ -214,4 +214,46 @@ export async function searchMemoryEntries(brandId: string, input: { query: strin
 
   const entries = await listMemoryEntries(brandId);
   return entries.slice(0, input.limit);
+}
+
+export async function ingestBrandDocument(
+  brandId: string,
+  input: { title: string; content: string; source?: string },
+) {
+  const brand = await loadBrand(brandId);
+  const result = await aiIngestDocument({
+    workspace_id: brand.workspaceId,
+    brand_id: brand.id,
+    title: input.title,
+    content: input.content,
+    source: input.source ?? "upload",
+  });
+
+  for (const chunk of result.chunks) {
+    await prisma.brandMemoryEntry.create({
+      data: {
+        workspaceId: brand.workspaceId,
+        brandId: brand.id,
+        title: chunk.title,
+        content: chunk.content,
+        tags: chunk.tags,
+        source: input.source ?? "upload",
+      },
+    });
+  }
+
+  return result;
+}
+
+export async function summarizeBrandDocument(
+  brandId: string,
+  input: { title: string; content: string },
+) {
+  const brand = await loadBrand(brandId);
+  return aiSummarizeDocument({
+    workspace_id: brand.workspaceId,
+    brand_id: brand.id,
+    title: input.title,
+    content: input.content,
+  });
 }

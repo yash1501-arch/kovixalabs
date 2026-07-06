@@ -113,6 +113,7 @@ services:
     environment:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
+      API_URL: http://api:4000
       AI_SERVICE_URL: http://ai:8000
       DATABASE_URL: postgresql://aismos:aismos@postgres:5432/aismos?schema=public
     depends_on:

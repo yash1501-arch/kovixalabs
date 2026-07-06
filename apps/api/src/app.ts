@@ -19,10 +19,25 @@ import { learningRouter } from "./routes/learning-routes.js";
 import { finetuneRouter } from "./routes/finetune-routes.js";
 import { mlopsRouter } from "./routes/mlops-routes.js";
 import { enterpriseRouter } from "./routes/enterprise-routes.js";
+import { postTemplateRouter } from "./routes/post-template-routes.js";
+import { imageGenRouter } from "./routes/image-gen-routes.js";
+import { aiProxyRouter } from "./routes/ai-proxy-routes.js";
+import { llmModelRouter } from "./routes/llm-model-routes.js";
+import { searchRouter } from "./routes/search-routes.js";
+import { activityRouter } from "./routes/activity-routes.js";
+import { healthRouter } from "./routes/health-routes.js";
 import { analyticsRouter } from "./routes/analytics-routes.js";
 import { auditRouter } from "./routes/audit-routes.js";
 import { copyRouter } from "./routes/copy-routes.js";
 import { internalRouter } from "./routes/internal-routes.js";
+import { mediaAssetRouter } from "./routes/media-asset-routes.js";
+import { faceSwapRouter } from "./routes/face-swap-routes.js";
+import { videoProjectRouter } from "./routes/video-project-routes.js";
+import { videoFaceSwapRouter } from "./routes/video-face-swap-routes.js";
+import { newsRouter } from "./routes/news-routes.js";
+import { uploadRouter } from "./routes/upload-routes.js";
+import { webhookRouter } from "./routes/webhook-routes.js";
+import { brandMemoryDocumentRouter } from "./routes/brand-memory-document-routes.js";
 import { globalErrorHandler } from "./middleware/error-handler.js";
 
 function asyncRoute(handler: RequestHandler): RequestHandler {
@@ -50,6 +65,8 @@ export function createApp() {
 
   app.use("/api", apiLimiter);
 
+  app.use("/api", healthRouter);
+
   app.use("/api/social", socialRouter);
   app.use("/api/auth", authRouter);
   app.use("/api", brandRouter);
@@ -64,11 +81,27 @@ export function createApp() {
   app.use("/api", finetuneRouter);
   app.use("/api", mlopsRouter);
   app.use("/api", enterpriseRouter);
+  app.use("/api", postTemplateRouter);
+  app.use("/api", imageGenRouter);
+  app.use("/api", aiProxyRouter);
+  app.use("/api", llmModelRouter);
+  app.use("/api", searchRouter);
+  app.use("/api", activityRouter);
   app.use("/api", analyticsRouter);
   app.use("/api", auditRouter);
   app.use("/api", copyRouter);
+  app.use("/api", mediaAssetRouter);
+  app.use("/api", faceSwapRouter);
+  app.use("/api", videoProjectRouter);
+  app.use("/api", videoFaceSwapRouter);
+  app.use("/api", newsRouter);
+  app.use("/api", webhookRouter);
+  app.use("/api", uploadRouter);
+  app.use("/api", brandMemoryDocumentRouter);
 
-  /* ── v1 aliases (frontend uses /v1/...) ── */
+  // v1 routes (Legacy)
+  app.use("/v1", healthRouter);
+  app.use("/v1", internalRouter);
   app.use("/v1", socialRouter);
   app.use("/v1/auth", authRouter);
   app.use("/v1", brandRouter);
@@ -83,9 +116,22 @@ export function createApp() {
   app.use("/v1", finetuneRouter);
   app.use("/v1", mlopsRouter);
   app.use("/v1", enterpriseRouter);
+  app.use("/v1", postTemplateRouter);
+  app.use("/v1", imageGenRouter);
+  app.use("/v1", aiProxyRouter);
+  app.use("/v1", llmModelRouter);
+  app.use("/v1", searchRouter);
+  app.use("/v1", activityRouter);
   app.use("/v1", analyticsRouter);
   app.use("/v1", auditRouter);
-  app.use("/v1", copyRouter);
+  app.use("/v1", mediaAssetRouter);
+  app.use("/v1", faceSwapRouter);
+  app.use("/v1", videoProjectRouter);
+  app.use("/v1", videoFaceSwapRouter);
+  app.use("/v1", newsRouter);
+  app.use("/v1", webhookRouter);
+  app.use("/v1", uploadRouter);
+  app.use("/v1", brandMemoryDocumentRouter);
 
   app.get("/health", asyncRoute(async (_request, response) => {
     response.json({ service: "api", status: "ok", timestamp: new Date().toISOString() });

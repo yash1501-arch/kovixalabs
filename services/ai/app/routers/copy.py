@@ -1,16 +1,18 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.models.schemas import CopyGenerationRequest, CopyGenerationResponse, CopyVariant
+from app.middleware.auth import verify_api_key
+
+from app.models.schemas import CopyGenerationRequest, CopyGenerationResponse, CopyVariant, ModelOverride
 from app.services.embeddings import create_embedding_provider
 from app.services.llm import create_llm_provider
 from app.services.prompts import build_caption_messages
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["copy"])
+router = APIRouter(prefix="/generate", tags=["copy"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/copy", response_model=CopyGenerationResponse)
@@ -31,7 +33,13 @@ async def generate_copy(request: CopyGenerationRequest):
                 f"[{r['title']}] {r['content']}" for r in results
             ]
 
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
         messages = build_caption_messages(
             brand_memory=brand_memory,
             platform=request.platform,

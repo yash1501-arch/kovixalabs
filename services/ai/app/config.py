@@ -32,6 +32,9 @@ class Settings:
     qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
     qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "brand_memory")
 
+    # API key authentication
+    api_key: str = os.getenv("AI_API_KEY", "")
+
     # Redis settings
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 

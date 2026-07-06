@@ -1,15 +1,18 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 from pydantic import BaseModel, Field
 
+from app.models.schemas import ModelOverride
 from app.services.embeddings import create_embedding_provider
 from app.services.llm import create_llm_provider
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/audit", tags=["audit"])
+router = APIRouter(prefix="/audit", tags=["audit"], dependencies=[Depends(verify_api_key)])
 
 
 class ScrapedPostItem(BaseModel):
@@ -35,6 +38,7 @@ class AuditAnalysisRequest(BaseModel):
     workspace_id: str
     brand_id: str
     profiles: list[PlatformAuditData]
+    model_override: ModelOverride | None = None
 
 
 class AuditInsight(BaseModel):
@@ -51,7 +55,13 @@ class AuditAnalysisResponse(BaseModel):
 @router.post("/analyze", response_model=AuditAnalysisResponse)
 async def analyze_audit(request: AuditAnalysisRequest):
     try:
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
 
         profiles_text = ""
         for p in request.profiles:

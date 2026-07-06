@@ -5,6 +5,7 @@ import { prisma } from "../db.js";
 import { ApiError } from "../utils/api-error.js";
 import { toPrismaJson } from "./helpers.js";
 import { loadBrand, searchMemoryEntries } from "./brand-service.js";
+import { generateCopy } from "./ai-client.js";
 
 type PrismaContentPlanRecord = Prisma.ContentPlanGetPayload<Record<string, never>>;
 type PrismaContentPlanItemRecord = Prisma.ContentPlanItemGetPayload<Record<string, never>>;
@@ -48,7 +49,7 @@ export async function createContentPlan(workspaceId: string, input: any) {
       // Memory not available, use defaults
     }
 
-    const items = generatePlanItems(serialized, memoryContext);
+    const items = await generatePlanItems(serialized, memoryContext);
     await tx.contentPlanItem.createMany({ data: items.map((item) => ({ id: item.id, planId: item.planId, day: item.day, platform: item.platform, topic: item.topic, caption: item.caption, hashtags: item.hashtags, scheduledDate: item.scheduledDate, status: "IDEA" })) });
     const savedItems = await tx.contentPlanItem.findMany({ where: { planId: plan.id }, orderBy: { day: "asc" } });
     return { plan: serialized, items: savedItems.map(serializeContentPlanItem) };
@@ -78,35 +79,50 @@ export async function deleteContentPlan(workspaceId: string, planId: string): Pr
   await prisma.contentPlan.delete({ where: { id: planId } });
 }
 
-const contentIdeas: Record<string, string[]> = {
-  instagram: ["Behind the scenes", "Product showcase", "Customer story", "Team spotlight", "Tips & tricks", "Trending audio reel", "Before & after", "Day in the life", "Q&A", "Milestone celebration"],
-  linkedin: ["Industry insight", "Thought leadership", "Company milestone", "Hiring announcement", "Case study", "Market trend analysis", "Team achievement", "Product feature deep-dive", "Expert opinion", "How-to guide"],
-  x: ["Hot take", "Thread: lessons learned", "Industry news reaction", "Quick tip", "Poll", "Behind the scenes", "Community shoutout", "Product update", "Interesting stat", "Question to followers"],
-  facebook: ["Community question", "Customer story", "Product demo", "Event announcement", "Educational post", "User-generated content", "Company news", "Tips & tricks", "Milestone", "Team intro"],
-  tiktok: ["Trending challenge", "Day in the life", "Product demo", "Educational", "POV story", "Behind the scenes", "Team culture", "Client transformation", "Myth busting", "Quick tips"],
-  youtube: ["Tutorial", "Case study", "Product review", "Industry interview", "Day in the life", "Company culture", "How-to guide", "Q&A", "Behind the scenes", "Deep-dive analysis"],
-};
-
-export function generatePlanItems(plan: any, memoryContext: string[] = []) {
-  const ideas = contentIdeas[plan.platform] ?? contentIdeas["instagram"] ?? [];
+export async function generatePlanItems(plan: any, memoryContext: string[] = []) {
   const start = new Date(plan.startDate);
-  return Array.from({ length: plan.postCount }, (_, i) => {
-    const dayOffset = Math.floor((i / plan.postCount) * 30);
-    const scheduledDate = new Date(start.getTime() + dayOffset * 86400000);
-    const idea = ideas[i % ideas.length] ?? "Content post";
-    const theme = plan.themes[i % Math.max(plan.themes.length, 1)] ?? "general";
-    const memorySnippet = memoryContext.length > 0
-      ? memoryContext[i % memoryContext.length]
-      : "";
+  const brandContext = memoryContext.length > 0 ? memoryContext.slice(0, 3).join("\n") : "";
 
-    return ContentPlanItemRecordSchema.parse({
-      id: crypto.randomUUID(), planId: plan.id, day: i + 1, platform: plan.platform, topic: idea,
-      caption: memorySnippet
-        ? `${idea} - ${theme}. ${memorySnippet.slice(0, 200)}`
-        : `${idea} - ${theme}. Sharing insights that matter to our community. Follow for more.`,
-      hashtags: [`#${plan.platform}`, `#${theme.toLowerCase().replace(/\s/g, "")}`, "#content", "#marketing"],
-      scheduledDate: scheduledDate.toISOString().split("T")[0] ?? scheduledDate.toISOString(),
-      status: "idea",
-    });
-  });
+  const items = [];
+  for (let i = 0; i < plan.postCount; i++) {
+    const dayOffset = Math.floor((i / Math.max(plan.postCount, 1)) * 30);
+    const scheduledDate = new Date(start.getTime() + dayOffset * 86400000);
+    const dateStr = scheduledDate.toISOString().split("T")[0] ?? scheduledDate.toISOString();
+
+    try {
+      const theme = plan.themes[i % Math.max(plan.themes.length, 1)] ?? "general brand content";
+      const result = await generateCopy({
+        brandId: plan.brandId,
+        platform: plan.platform,
+        objective: "engagement",
+        topic: theme,
+        variants: 1,
+      });
+
+      const variant = result.variants[0];
+      items.push(ContentPlanItemRecordSchema.parse({
+        id: crypto.randomUUID(), planId: plan.id, day: i + 1, platform: plan.platform,
+        topic: theme,
+        caption: variant?.caption ?? `${theme} - Sharing insights for our community.`,
+        hashtags: [`#${plan.platform}`, `#${theme.toLowerCase().replace(/\s/g, "")}`],
+        scheduledDate: dateStr,
+        status: "idea",
+      }));
+    } catch {
+      const topics = ["Industry insight", "Tips & tricks", "Behind the scenes", "Customer story", "Thought leadership"];
+      const fallbackTopic = topics[i % topics.length] ?? "Content post";
+      items.push(ContentPlanItemRecordSchema.parse({
+        id: crypto.randomUUID(), planId: plan.id, day: i + 1, platform: plan.platform,
+        topic: fallbackTopic,
+        caption: brandContext
+          ? `${fallbackTopic}. ${brandContext.slice(0, 200)}`
+          : `${fallbackTopic}. Sharing insights that matter to our community.`,
+        hashtags: [`#${plan.platform}`, "#content"],
+        scheduledDate: dateStr,
+        status: "idea",
+      }));
+    }
+  }
+
+  return items;
 }

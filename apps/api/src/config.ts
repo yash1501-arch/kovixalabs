@@ -2,6 +2,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function assertNonEmpty(key: string, value: string): void {
+  if (!value) {
+    throw new Error(
+      `Environment variable ${key} is required but was not set. ` +
+      "This is a security requirement. Please set it before starting the server."
+    );
+  }
+}
+
 function readNumber(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) {
@@ -60,4 +69,8 @@ export const env = {
     "INSTAGRAM_BASIC_REDIRECT_URI",
     "http://localhost:4000/api/social/instagram-basic/callback"
   ),
+  internalAuthToken: readString("INTERNAL_AUTH_TOKEN", ""),
 };
+
+assertNonEmpty("ENCRYPTION_SECRET", env.encryptionSecret);
+assertNonEmpty("INTERNAL_AUTH_TOKEN", env.internalAuthToken);

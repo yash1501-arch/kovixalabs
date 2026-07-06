@@ -5,6 +5,8 @@ import { env } from "./config.js";
 import { handlePublishJob } from "./jobs/publishing.js";
 import { handleTrendIngestionJob } from "./jobs/trend-ingestion.js";
 import { handleVideoRenderJob } from "./jobs/video-render.js";
+import { handleAnalyticsSyncJob } from "./jobs/analytics-sync.js";
+import { handleTokenRefreshJob } from "./jobs/token-refresh.js";
 import { JobQueue, type JobHandler } from "./queues/job-queue.js";
 import { closeRedisClient, getRedisClient } from "./queues/redis-client.js";
 import { Scheduler } from "./services/scheduler.js";
@@ -57,6 +59,30 @@ async function checkScheduledPosts(): Promise<void> {
   }
 }
 
+async function pollTrends(trendQueueRef?: JobQueue): Promise<void> {
+  if (!trendQueueRef) return;
+  try {
+    const response = await fetch(`${env.apiUrl}/api/internal/workspaces`, {
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      logger.warn({ status: response.status }, "Failed to fetch workspaces for trend ingestion");
+      return;
+    }
+
+    const workspaces = await response.json() as Array<{ id: string }>;
+
+    for (const workspace of workspaces) {
+      await trendQueueRef.enqueue("ingest", { workspaceId: workspace.id });
+    }
+
+    logger.info({ count: workspaces.length }, "Enqueued trend ingestion jobs");
+  } catch (err) {
+    logger.error({ err }, "Error polling trends");
+  }
+}
+
 async function main(): Promise<void> {
   logger.info({ redisUrl: env.redisUrl, apiUrl: env.apiUrl, aiServiceUrl: env.aiServiceUrl }, "AISMOS Workers starting");
 
@@ -69,15 +95,21 @@ async function main(): Promise<void> {
 
   let trendQueue: JobQueue | undefined;
   let videoRenderQueue: JobQueue | undefined;
+  let analyticsQueue: JobQueue | undefined;
+  let tokenRefreshQueue: JobQueue | undefined;
 
   if (redis) {
     publishQueue = new JobQueue("publishing", redis, handlePublishJob as JobHandler, env.publishConcurrency);
     trendQueue = new JobQueue("trend-ingestion", redis, handleTrendIngestionJob as JobHandler, env.trendConcurrency);
     videoRenderQueue = new JobQueue("video-render", redis, handleVideoRenderJob as JobHandler, 2);
+    analyticsQueue = new JobQueue("analytics-sync", redis, handleAnalyticsSyncJob as JobHandler, env.analyticsConcurrency);
+    tokenRefreshQueue = new JobQueue("token-refresh", redis, handleTokenRefreshJob as JobHandler, 1);
 
     publishQueue.start();
     trendQueue.start();
     videoRenderQueue.start();
+    analyticsQueue.start();
+    tokenRefreshQueue.start();
     logger.info("Job queues initialized and started");
   }
 
@@ -85,9 +117,32 @@ async function main(): Promise<void> {
 
   scheduler.add("scheduled-post-check", env.publishIntervalMs, checkScheduledPosts);
 
-  scheduler.add("trend-ingestion-poll", env.trendIngestionIntervalMs, async () => {
-    logger.info("Trend ingestion poll cycle");
-  });
+  scheduler.add("trend-ingestion-poll", env.trendIngestionIntervalMs, () => pollTrends(trendQueue));
+
+  if (redis) {
+    scheduler.add("analytics-sync-poll", env.analyticsSyncIntervalMs, async () => {
+      try {
+        const response = await fetch(`${env.apiUrl}/api/internal/workspaces`, {
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) return;
+        const workspaces = await response.json() as Array<{ id: string }>;
+        for (const workspace of workspaces) {
+          if (analyticsQueue) {
+            await analyticsQueue.enqueue("sync", { workspaceId: workspace.id });
+          }
+        }
+      } catch (err) {
+        logger.error({ err }, "Analytics sync poll failed");
+      }
+    });
+
+    scheduler.add("token-refresh", env.tokenRefreshIntervalMs, async () => {
+      if (tokenRefreshQueue) {
+        await tokenRefreshQueue.enqueue("refresh", {});
+      }
+    });
+  }
 
   scheduler.start();
 
@@ -97,6 +152,9 @@ async function main(): Promise<void> {
 
     if (publishQueue) publishQueue.stop();
     if (trendQueue) trendQueue.stop();
+    if (videoRenderQueue) videoRenderQueue.stop();
+    if (analyticsQueue) analyticsQueue.stop();
+    if (tokenRefreshQueue) tokenRefreshQueue.stop();
 
     await closeRedisClient();
     process.exit(0);

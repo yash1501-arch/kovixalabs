@@ -2,6 +2,16 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class ModelOverride(BaseModel):
+    """Optional model configuration override sent from the API layer."""
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    api_url: Optional[str] = None
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+
+
 class CopyVariant(BaseModel):
     id: str
     caption: str
@@ -16,6 +26,7 @@ class CopyGenerationRequest(BaseModel):
     tone: Optional[str] = None
     brand_memory: list[str] = Field(default_factory=list)
     variants: int = Field(default=3, ge=1, le=10)
+    model_override: Optional[ModelOverride] = None
 
 
 class CopyGenerationResponse(BaseModel):
@@ -29,6 +40,7 @@ class HashtagGenerationRequest(BaseModel):
     platform: str
     topic: str
     caption: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
 
 
 class HashtagSet(BaseModel):
@@ -100,6 +112,7 @@ class ContentFeedbackRequest(BaseModel):
     media_urls: list[str] = Field(default_factory=list)
     engagement: dict = Field(default_factory=dict)
     performance_score: float = 0.0
+    model_override: Optional[ModelOverride] = None
 
 
 class ContentFeedbackResponse(BaseModel):
@@ -114,6 +127,7 @@ class ImageGenerationRequest(BaseModel):
     style: Optional[str] = None
     aspect_ratio: str = "1:1"
     count: int = Field(default=1, ge=1, le=4)
+    model_override: Optional[ModelOverride] = None
 
 
 class ImageGenerationResponse(BaseModel):
@@ -136,6 +150,7 @@ class VideoScriptRequest(BaseModel):
     duration_seconds: int = 30
     style: Optional[str] = None
     cta: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
 
 
 class VideoScriptResponse(BaseModel):
@@ -156,6 +171,7 @@ class BatchContentRequest(BaseModel):
     generate_images: bool = False
     generate_video_script: bool = False
     variant_count: int = 3
+    model_override: Optional[ModelOverride] = None
 
 
 class BatchContentVariant(BaseModel):
@@ -182,6 +198,7 @@ class HashtagResearchRequest(BaseModel):
     platform: str
     industry: Optional[str] = None
     brand_id: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
 
 
 class HashtagAnalysis(BaseModel):
@@ -206,6 +223,7 @@ class HashtagRechargeRequest(BaseModel):
     current_hashtags: list[str] = Field(default_factory=list)
     topic: Optional[str] = None
     count: int = Field(default=10, ge=5, le=30)
+    model_override: Optional[ModelOverride] = None
 
 
 class HashtagPool(BaseModel):
@@ -239,6 +257,7 @@ class EngagementAnalysisRequest(BaseModel):
     brand_id: str
     platform: str
     records: list[EngagementRecord] = Field(default_factory=list)
+    model_override: Optional[ModelOverride] = None
 
 
 class PerformanceInsight(BaseModel):
@@ -261,6 +280,7 @@ class VoiceoverRequest(BaseModel):
     voice: str = "nova"
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
     format: str = "mp3"
+    model_override: Optional[ModelOverride] = None
 
 
 class VoiceoverResponse(BaseModel):
@@ -312,3 +332,94 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     dependencies: dict[str, str]
+
+
+# ─── News Scraper ──────────────────────────────────────────────
+
+class NewsScrapeRequest(BaseModel):
+    url: str
+    max_articles: int = Field(default=20, ge=1, le=100)
+
+
+class NewsArticleItem(BaseModel):
+    title: str
+    url: str
+    content: Optional[str] = None
+    summary: Optional[str] = None
+    author: Optional[str] = None
+    published_at: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class NewsScrapeResponse(BaseModel):
+    source_url: str
+    articles: list[NewsArticleItem]
+
+
+class NewsAnalyzeRequest(BaseModel):
+    articles: list[NewsArticleItem]
+    brand_context: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
+
+
+class NewsAnalysisItem(BaseModel):
+    url: str
+    title: str
+    summary: str
+    keywords: list[str]
+    relevance_score: float = Field(ge=0, le=1)
+    sentiment: str  # "positive" | "negative" | "neutral"
+
+
+class NewsAnalyzeResponse(BaseModel):
+    analyses: list[NewsAnalysisItem]
+
+
+# ─── Face Swap ─────────────────────────────────────────────────
+
+class FaceSwapAnalyzeRequest(BaseModel):
+    source_image_url: str
+    target_image_url: str
+    brand_context: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
+
+
+class FaceSwapAnalyzeResponse(BaseModel):
+    compatible: bool
+    confidence: float = Field(ge=0, le=1)
+    recommendations: list[str]
+    parameters: dict[str, object] = Field(default_factory=dict)
+
+
+# ─── Swarm ───────────────────────────────────────────────────
+
+class SwarmAgentDefinition(BaseModel):
+    agent_id: str
+    role: str
+    action: str
+
+
+class SwarmExecuteRequest(BaseModel):
+    task_id: str
+    task_type: str
+    agents: list[SwarmAgentDefinition]
+    brand_context: Optional[str] = None
+    brand_memory: list[str] = Field(default_factory=list)
+    platform: Optional[str] = None
+    model_override: Optional[ModelOverride] = None
+
+
+class SwarmAgentResult(BaseModel):
+    agent_id: str
+    role: str
+    status: str
+    result: str
+    details: str = ""
+
+
+class SwarmExecuteResponse(BaseModel):
+    task_id: str
+    task_type: str
+    agent_count: int
+    completed_count: int
+    agents: list[SwarmAgentResult]

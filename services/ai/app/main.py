@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import audit, batch, copy, embed, hashtags, health, images, memory, render, research, video, voiceover
+from app.routers import audit, batch, copy, documents, embed, face_enhance, face_swap, finetune, hashtags, health, images, memory, models, music, news_scraper, render, research, swarm, video, voiceover
 from app.services.vector_store import vector_store
 
 logging.basicConfig(
@@ -51,6 +51,14 @@ app.include_router(batch.router)
 app.include_router(research.router)
 app.include_router(voiceover.router)
 app.include_router(render.router)
+app.include_router(models.router)
+app.include_router(news_scraper.router)
+app.include_router(face_swap.router)
+app.include_router(face_enhance.router)
+app.include_router(documents.router)
+app.include_router(swarm.router)
+app.include_router(finetune.router)
+app.include_router(music.router)
 
 logger = logging.getLogger(__name__)
 

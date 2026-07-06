@@ -18,6 +18,7 @@ import * as twitter from "./twitter-api.js";
 import * as tiktok from "./tiktok-api.js";
 import * as youtube from "./youtube-api.js";
 import * as instagramBasic from "./instagram-api.js";
+import { researchSocialProfile } from "./ai-client.js";
 
 export type SocialPlatform = "facebook" | "instagram" | "instagram-basic" | "linkedin" | "twitter" | "tiktok" | "youtube";
 
@@ -282,6 +283,7 @@ async function saveAccount(input: {
   displayName: string;
   followerCount: number;
   accessToken: string;
+  refreshToken?: string | null;
   tokenExpiresAt: Date | null;
   scopes: string[];
   metadata: Prisma.InputJsonValue;
@@ -299,6 +301,7 @@ async function saveAccount(input: {
     connectedAt: new Date(),
     followerCount: input.followerCount,
     accessToken: encryptToken(input.accessToken),
+    refreshToken: input.refreshToken ? encryptToken(input.refreshToken) : undefined,
     tokenExpiresAt: input.tokenExpiresAt,
     scopes: input.scopes,
     metadata: input.metadata,
@@ -340,6 +343,11 @@ export async function connectLinkedIn(input: {
     metadata,
   });
 
+  await triggerSocialResearch(input.workspaceId, "linkedin", {
+    display_name: userInfo.name,
+    ...metadata,
+  });
+
   return serializePublicSocialAccount(account);
 }
 
@@ -364,9 +372,18 @@ export async function connectTwitter(input: {
     displayName: userInfo.name,
     followerCount: 0,
     accessToken: token.access_token,
+    refreshToken: (token as { refresh_token?: string }).refresh_token,
     tokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
     scopes: token.scope.split(" ").filter(Boolean),
     metadata: { profileImageUrl: userInfo.profile_image_url },
+  });
+
+  await triggerSocialResearch(input.workspaceId, "twitter", {
+    display_name: userInfo.name,
+    username: userInfo.username,
+    bio: userInfo.description,
+    follower_count: userInfo.public_metrics?.followers_count,
+    media_count: userInfo.public_metrics?.tweet_count,
   });
 
   return serializePublicSocialAccount(account);
@@ -392,9 +409,17 @@ export async function connectTikTok(input: {
     displayName: userInfo.display_name ?? "TikTok Account",
     followerCount: userInfo.follower_count ?? 0,
     accessToken: token.access_token,
+    refreshToken: (token as { refresh_token?: string }).refresh_token,
     tokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
     scopes: (token.scope ?? "").split(" ").filter(Boolean),
     metadata: { avatarUrl: userInfo.avatar_url, bio: userInfo.bio_description },
+  });
+
+  await triggerSocialResearch(input.workspaceId, "tiktok", {
+    display_name: userInfo.display_name,
+    username: userInfo.display_name,
+    bio: userInfo.bio_description,
+    follower_count: userInfo.follower_count,
   });
 
   return serializePublicSocialAccount(account);
@@ -420,6 +445,7 @@ export async function connectYouTube(input: {
     displayName: channel.title,
     followerCount: Number(channel.statistics?.subscriberCount ?? 0),
     accessToken: token.access_token,
+    refreshToken: (token as { refresh_token?: string }).refresh_token,
     tokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
     scopes: token.scope.split(" ").filter(Boolean),
     metadata: {
@@ -428,6 +454,14 @@ export async function connectYouTube(input: {
       videoCount: channel.statistics?.videoCount,
       viewCount: channel.statistics?.viewCount,
     },
+  });
+
+  await triggerSocialResearch(input.workspaceId, "youtube", {
+    display_name: channel.title,
+    description: channel.description,
+    follower_count: Number(channel.statistics?.subscriberCount ?? 0),
+    video_count: Number(channel.statistics?.videoCount ?? 0),
+    view_count: Number(channel.statistics?.viewCount ?? 0),
   });
 
   return serializePublicSocialAccount(account);
@@ -494,6 +528,20 @@ export async function connectMetaAccounts(input: {
     );
   }
 
+  for (const fb of facebookAccounts) {
+    await triggerSocialResearch(input.workspaceId, "facebook", {
+      display_name: fb.displayName,
+      follower_count: fb.followerCount,
+    });
+  }
+
+  for (const ig of instagramAccounts) {
+    await triggerSocialResearch(input.workspaceId, "instagram", {
+      display_name: ig.displayName,
+      follower_count: ig.followerCount,
+    });
+  }
+
   return {
     facebookAccounts: facebookAccounts.map(serializePublicSocialAccount),
     instagramAccounts: instagramAccounts.map(serializePublicSocialAccount)
@@ -530,7 +578,64 @@ export async function connectInstagramBasicAccount(input: {
     metadata
   });
 
+  await triggerSocialResearch(input.workspaceId, "instagram", {
+    display_name: profile.username,
+    username: profile.username,
+    bio: (profile as any).biography,
+  });
+
   return serializePublicSocialAccount(account);
+}
+
+async function findFirstBrand(workspaceId: string): Promise<string | null> {
+  const brand = await prisma.brand.findFirst({ where: { workspaceId }, orderBy: { createdAt: "asc" } });
+  return brand?.id ?? null;
+}
+
+async function triggerSocialResearch(workspaceId: string, platform: string, metadata: Record<string, unknown>) {
+  try {
+    const brandId = await findFirstBrand(workspaceId);
+    if (!brandId) return;
+
+    const result = await researchSocialProfile({
+      platform,
+      display_name: (metadata.display_name as string) ?? (metadata.handle as string) ?? "",
+      username: (metadata.username as string) ?? undefined,
+      follower_count: (metadata.follower_count as number) ?? 0,
+      bio: (metadata.bio as string) ?? undefined,
+      description: (metadata.description as string) ?? undefined,
+      media_count: (metadata.media_count as number) ?? undefined,
+      video_count: (metadata.video_count as number) ?? undefined,
+      view_count: (metadata.view_count as number) ?? undefined,
+      website: (metadata.website as string) ?? undefined,
+    });
+
+    const insights = [
+      { title: `${platform} Profile Summary`, content: result.profile_summary, category: "profile" },
+      { title: `${platform} Audience`, content: result.audience_description, category: "audience" },
+      { title: `${platform} Brand Voice`, content: result.suggested_brand_voice, category: "voice" },
+      ...result.insights.map((insight) => ({
+        title: `${platform}: ${insight.category}`,
+        content: insight.finding,
+        category: insight.category,
+      })),
+    ];
+
+    for (const insight of insights) {
+      await prisma.brandMemoryEntry.create({
+        data: {
+          workspaceId,
+          brandId,
+          title: insight.title,
+          content: insight.content,
+          tags: [platform, "auto-research", insight.category],
+          source: "social_research",
+        },
+      });
+    }
+  } catch {
+    // Non-critical: research failure shouldn't block connection
+  }
 }
 
 export async function disconnectSocialAccount(input: {

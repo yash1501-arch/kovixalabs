@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.config import settings
 from app.models.schemas import (
@@ -14,7 +16,7 @@ from app.services.embeddings import create_embedding_provider
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["embeddings"])
+router = APIRouter(tags=["embeddings"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/embed", response_model=EmbeddingResponse)

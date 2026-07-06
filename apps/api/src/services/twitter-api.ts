@@ -17,6 +17,13 @@ export type TwitterUser = {
   name: string;
   username: string;
   profile_image_url?: string;
+  description?: string;
+  public_metrics?: {
+    followers_count: number;
+    following_count: number;
+    tweet_count: number;
+    listed_count: number;
+  };
 };
 
 async function readResponse<T>(response: Response, action: string): Promise<T> {
@@ -80,7 +87,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<TwitterT
 }
 
 export async function fetchUserInfo(accessToken: string): Promise<TwitterUser> {
-  const response = await fetch(`${apiBase}/users/me?user.fields=profile_image_url`, {
+  const response = await fetch(`${apiBase}/users/me?user.fields=profile_image_url,description,public_metrics`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const data = await readResponse<{ data: TwitterUser }>(response, "Twitter user info");

@@ -1,14 +1,16 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.config import settings
 from app.models.schemas import ImageGenerationRequest, ImageGenerationResponse
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["images"])
+router = APIRouter(prefix="/generate", tags=["images"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/images", response_model=ImageGenerationResponse)
@@ -41,12 +43,18 @@ async def generate_images(request: ImageGenerationRequest):
         brand_instruction = f"\nBrand visual context:\n{brand_context}" if brand_context else ""
         full_prompt = f"{request.prompt}{style_prompt}{brand_instruction}"
 
+        mo = request.model_override
+        api_key = mo.api_key if (mo and mo.api_key) else settings.llm_api_key
+        api_url = mo.api_url if (mo and mo.api_url) else settings.llm_api_url
+        model = mo.model if (mo and mo.model) else "dall-e-3"
+        timeout = mo.max_tokens if (mo and mo.max_tokens) else 60
+
         headers = {
-            "Authorization": f"Bearer {settings.llm_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         body = {
-            "model": "dall-e-3",
+            "model": model,
             "prompt": full_prompt,
             "n": request.count,
             "size": size,
@@ -54,9 +62,10 @@ async def generate_images(request: ImageGenerationRequest):
             "response_format": "url",
         }
 
-        async with __import__("httpx").AsyncClient(timeout=60) as client:
+        base_url = api_url.rstrip("/v1")
+        async with __import__("httpx").AsyncClient(timeout=timeout) as client:
             response = await client.post(
-                f"{settings.llm_api_url.rstrip('/v1')}/v1/images/generations",
+                f"{base_url}/v1/images/generations",
                 headers=headers,
                 json=body,
             )

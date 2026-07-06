@@ -59,6 +59,15 @@ const BASE_MODELS = [
   "aismos-tone-v3"
 ];
 
+type LlmModel = {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  isDefault: boolean;
+  enabled: boolean;
+};
+
 const JOB_STATUS_COLORS: Record<string, string> = {
   completed: "#10B981",
   running: "#3B82F6",
@@ -104,6 +113,7 @@ export function FinetuneClient() {
   const [datasets, setDatasets] = useState<FinetuneDataset[]>([]);
   const [jobs, setJobs] = useState<FinetuneJob[]>([]);
   const [models, setModels] = useState<FinetunedModel[]>([]);
+  const [llmModels, setLlmModels] = useState<LlmModel[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [showDatasetForm, setShowDatasetForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
@@ -115,11 +125,12 @@ export function FinetuneClient() {
 
   const loadData = useCallback(async () => {
     try {
-      const [datasetsRes, jobsRes, modelsRes, brandsRes] = await Promise.all([
+      const [datasetsRes, jobsRes, modelsRes, brandsRes, llmRes] = await Promise.all([
         fetch(apiUrl(`/v1/workspaces/${workspaceId}/finetune/datasets`)),
         fetch(apiUrl(`/v1/workspaces/${workspaceId}/finetune/jobs`)),
         fetch(apiUrl(`/v1/workspaces/${workspaceId}/finetune/models`)),
-        fetch(apiUrl(`/v1/workspaces/${workspaceId}/brands`))
+        fetch(apiUrl(`/v1/workspaces/${workspaceId}/brands`)),
+        fetch(apiUrl(`/v1/workspaces/${workspaceId}/llm-models`)),
       ]);
       if (datasetsRes.ok) setDatasets(await datasetsRes.json());
       if (jobsRes.ok) setJobs(await jobsRes.json());
@@ -131,6 +142,14 @@ export function FinetuneClient() {
         if (first) {
           setDatasetForm(f => ({ ...f, brandId: first.id }));
           setJobForm(f => ({ ...f, brandId: first.id }));
+        }
+      }
+      if (llmRes.ok) {
+        const m: LlmModel[] = await llmRes.json();
+        setLlmModels(m);
+        const def = m.find(m => m.isDefault) ?? m[0];
+        if (def) {
+          setJobForm(f => ({ ...f, baseModel: `${def.provider}/${def.model}` }));
         }
       }
     } catch { /* silently fail */ }
@@ -350,7 +369,9 @@ export function FinetuneClient() {
                 <div className="field">
                   <label>Base Model</label>
                   <select value={jobForm.baseModel} onChange={e => setJobForm(f => ({ ...f, baseModel: e.target.value }))}>
-                    {BASE_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                    {llmModels.length > 0
+                      ? llmModels.map(m => <option key={m.id} value={`${m.provider}/${m.model}`}>{m.name} ({m.provider}/{m.model}){m.isDefault ? " ★" : ""}</option>)
+                      : BASE_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div className="field">

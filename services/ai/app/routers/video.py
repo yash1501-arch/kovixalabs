@@ -1,7 +1,9 @@
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.middleware.auth import verify_api_key
 
 from app.models.schemas import (
     VideoScriptRequest,
@@ -13,7 +15,7 @@ from app.services.llm import create_llm_provider
 from app.services.vector_store import vector_store
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/generate", tags=["video"])
+router = APIRouter(prefix="/generate", tags=["video"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/video-scripts", response_model=VideoScriptResponse)
@@ -30,7 +32,13 @@ async def generate_video_script(request: VideoScriptRequest):
             )
             brand_memory_text = "\n".join(f"[{r['title']}] {r['content']}" for r in results)
 
-        llm = create_llm_provider()
+        mo = request.model_override
+        llm = create_llm_provider(
+            api_key=mo.api_key if mo else "",
+            api_url=mo.api_url if mo else "",
+            model=mo.model if mo else "",
+            provider=mo.provider if mo else "",
+        )
 
         scene_count = max(3, request.duration_seconds // 10)
 

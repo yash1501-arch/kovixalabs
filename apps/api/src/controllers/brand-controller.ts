@@ -9,6 +9,8 @@ import {
   createMemoryEntry,
   deleteMemoryEntry,
   searchMemoryEntries,
+  ingestBrandDocument,
+  summarizeBrandDocument,
 } from "../services/brand-service.js";
 
 const WorkspaceParams = z.object({ workspaceId: z.string().min(1) });
@@ -93,4 +95,27 @@ export async function destroyMemory(request: Request, response: Response) {
   const { entryId } = z.object({ entryId: z.string().min(1) }).parse(request.params);
   await deleteMemoryEntry(entryId, brandId);
   response.status(204).send();
+}
+
+const DocumentIngestSchema = z.object({
+  title: z.string().min(1).max(500),
+  content: z.string().min(1),
+  source: z.string().optional(),
+});
+
+export async function ingestDocument(request: Request, response: Response) {
+  const { brandId } = BrandParams.parse(request.params);
+  const input = DocumentIngestSchema.parse(request.body);
+  response.json(await ingestBrandDocument(brandId, input));
+}
+
+const DocumentSummarizeSchema = z.object({
+  title: z.string().min(1).max(500),
+  content: z.string().min(1),
+});
+
+export async function summarizeDocument(request: Request, response: Response) {
+  const { brandId } = BrandParams.parse(request.params);
+  const input = DocumentSummarizeSchema.parse(request.body);
+  response.json(await summarizeBrandDocument(brandId, input));
 }

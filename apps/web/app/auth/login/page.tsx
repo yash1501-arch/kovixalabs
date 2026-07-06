@@ -144,6 +144,9 @@ export default function LoginPage() {
               <input type="checkbox" name="remember" id="login-remember" />
               <span>Remember me</span>
             </label>
+            <a href="/auth/forgot-password" className="auth-forgot">
+              Forgot password?
+            </a>
             <a href="/auth/register" className="auth-forgot">
               Create account
             </a>

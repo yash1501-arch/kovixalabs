@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
 import { ApiError } from "../utils/api-error.js";
@@ -98,12 +99,13 @@ export async function registerUser(input: { name: string; email: string; passwor
         workspaceId: workspace.id,
         role: "OWNER",
       },
+      include: { workspace: true },
     });
-    return { user: created, workspace, role: member.role };
+    return { user: created, member };
   });
 
-  const session = await createAuthSession(result.user.id, result.workspace.id, "OWNER", result.user.email, result.user.name);
-  return { token: session.token, refreshToken: session.refreshToken, expiresAt: session.expiresAt, user: result.user, workspace: result.workspace };
+  const session = await createAuthSession(result.user.id, result.member.workspace.id, result.member.role, result.user.email, result.user.name);
+  return { token: session.token, refreshToken: session.refreshToken, expiresAt: session.expiresAt, user: result.user, workspace: serializeAuthWorkspace(result.member) };
 }
 
 export async function loginUser(input: { email: string; password: string }) {
@@ -141,4 +143,63 @@ export async function refreshAuthSession(userId: string) {
 
   const tokens = createAuthTokens(user.id, membership.workspace.id, membership.role, user.email, user.name);
   return { token: tokens.accessToken, refreshToken: tokens.refreshToken, expiresAt: tokens.expiresAt, expires_in: 86400 };
+}
+
+export async function generatePasswordResetToken(email: string): Promise<string> {
+  const user = await prisma.user.findUnique({ where: { email: normalizeEmail(email) } });
+  if (!user) {
+    return "ok";
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 86_400_000);
+
+  await prisma.passwordResetToken.create({
+    data: { userId: user.id, token, expiresAt },
+  });
+
+  console.log(`\n[DEV] Password reset token for ${user.email}: ${token}`);
+  console.log(`[DEV] Reset URL: http://localhost:3000/auth/reset-password?token=${token}\n`);
+
+  return "ok";
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { token } });
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    throw new ApiError(400, "invalid_token", "Reset token is invalid or expired.");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.$transaction([
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+    prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    prisma.userSession.deleteMany({ where: { userId: resetToken.userId } }),
+  ]);
+}
+
+export async function updateProfile(userId: string, name: string): Promise<{ id: string; email: string; name: string | null }> {
+  const user = await prisma.user.update({ where: { id: userId }, data: { name } });
+  return serializeAuthUser(user);
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.passwordHash || !(await verifyPassword(currentPassword, user.passwordHash))) {
+    throw new ApiError(400, "invalid_password", "Current password is incorrect.");
+  }
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+    prisma.userSession.deleteMany({ where: { userId } }),
+  ]);
+}
+
+export async function updateWorkspace(workspaceId: string, userId: string, name: string): Promise<{ id: string; name: string; slug: string }> {
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId, workspaceId, role: { in: ["OWNER", "ADMIN"] } },
+  });
+  if (!membership) throw new ApiError(403, "forbidden", "Only workspace owners and admins can update workspace settings.");
+  const workspace = await prisma.workspace.update({ where: { id: workspaceId }, data: { name } });
+  return { id: workspace.id, name: workspace.name, slug: workspace.slug };
 }

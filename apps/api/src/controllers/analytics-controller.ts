@@ -21,7 +21,8 @@ const RechargeSchema = z.object({
 
 export async function workspaceStats(request: Request, response: Response) {
   const { workspaceId } = WorkspaceParams.parse(request.params);
-  response.json(await getWorkspaceStats(workspaceId));
+  const { period } = z.object({ period: z.enum(["7d", "30d", "90d"]).default("30d") }).parse(request.query);
+  response.json(await getWorkspaceStats(workspaceId, period));
 }
 
 export async function brandPerformance(request: Request, response: Response) {

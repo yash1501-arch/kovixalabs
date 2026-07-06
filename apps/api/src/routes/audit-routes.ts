@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { auditBrand } from "../controllers/audit-controller.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireWorkspaceAuth } from "../middleware/rbac.js";
 
 function asyncRoute(handler: RequestHandler): RequestHandler {
   return (request, response, next) => {
@@ -10,4 +10,4 @@ function asyncRoute(handler: RequestHandler): RequestHandler {
 
 export const auditRouter = Router();
 
-auditRouter.post("/workspaces/:workspaceId/brands/:brandId/audit", requireAuth, asyncRoute(auditBrand));
+auditRouter.post("/workspaces/:workspaceId/brands/:brandId/audit", ...requireWorkspaceAuth(), asyncRoute(auditBrand));

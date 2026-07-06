@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from "express";
-import { index, create, updateStatus, remove, publish } from "../controllers/post-controller.js";
-import { optionalAuth, requireAuth } from "../middleware/auth.js";
+import { index, show, create, update, updateStatus, remove, publish } from "../controllers/post-controller.js";
+import { requireWorkspaceAuth } from "../middleware/rbac.js";
 
 function asyncRoute(handler: RequestHandler): RequestHandler {
   return (request, response, next) => {
@@ -10,8 +10,10 @@ function asyncRoute(handler: RequestHandler): RequestHandler {
 
 export const postRouter = Router();
 
-postRouter.get("/workspaces/:workspaceId/posts", optionalAuth, asyncRoute(index));
-postRouter.post("/workspaces/:workspaceId/posts", requireAuth, asyncRoute(create));
-postRouter.patch("/workspaces/:workspaceId/posts/:postId/status", requireAuth, asyncRoute(updateStatus));
-postRouter.post("/workspaces/:workspaceId/posts/:postId/publish", requireAuth, asyncRoute(publish));
-postRouter.delete("/workspaces/:workspaceId/posts/:postId", requireAuth, asyncRoute(remove));
+postRouter.get("/workspaces/:workspaceId/posts", ...requireWorkspaceAuth(), asyncRoute(index));
+postRouter.get("/workspaces/:workspaceId/posts/:postId", ...requireWorkspaceAuth(), asyncRoute(show));
+postRouter.post("/workspaces/:workspaceId/posts", ...requireWorkspaceAuth(), asyncRoute(create));
+postRouter.patch("/workspaces/:workspaceId/posts/:postId", ...requireWorkspaceAuth(), asyncRoute(update));
+postRouter.patch("/workspaces/:workspaceId/posts/:postId/status", ...requireWorkspaceAuth(), asyncRoute(updateStatus));
+postRouter.post("/workspaces/:workspaceId/posts/:postId/publish", ...requireWorkspaceAuth(), asyncRoute(publish));
+postRouter.delete("/workspaces/:workspaceId/posts/:postId", ...requireWorkspaceAuth(), asyncRoute(remove));

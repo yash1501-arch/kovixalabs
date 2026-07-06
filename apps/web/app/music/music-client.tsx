@@ -103,20 +103,34 @@ export function MusicAIClient() {
   async function findMusic() {
     if (!form.brandId) { setStatus("Please select a brand."); return; }
     setIsFinding(true);
-    setStatus("Finding perfect tracks...");
+    setStatus("Generating track...");
     setTracks([]);
     try {
-      const res = await fetch(apiUrl(`/v1/brands/${form.brandId}/music/suggest`), {
+      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/generate/music`), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...form, workspaceId })
+        body: JSON.stringify({
+          genre: form.genre || "pop",
+          mood: form.mood,
+          durationSeconds: 30,
+          style: form.contentType || undefined,
+          prompt: form.contentType ? `Create music for ${form.contentType} content on ${form.platform}` : undefined,
+        }),
       });
       if (!res.ok) throw new Error("API error");
-      const suggestion: MusicSuggestion = await res.json();
-      setTracks(suggestion.tracks);
-      setSavedSuggestions(prev => [suggestion, ...prev]);
-      setStatus(`Found ${suggestion.tracks.length} tracks.`);
-    } catch { setStatus("Failed to find music."); }
+      const data = await res.json();
+      setTracks([{
+        title: data.title,
+        artist: "AISMOS AI",
+        genre: data.genre,
+        bpm: 120,
+        duration: `${data.duration_seconds}s`,
+        mood: data.mood,
+        licenseType: "Generated",
+        previewDescription: `AI-generated ${data.genre} track with ${data.mood} mood. [Task: ${data.task_id.slice(0, 8)}]`,
+      }]);
+      setStatus("Track generated.");
+    } catch { setStatus("Generation failed. Check your LLM model configuration."); }
     finally { setIsFinding(false); }
   }
 

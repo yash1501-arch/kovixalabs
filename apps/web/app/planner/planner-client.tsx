@@ -55,10 +55,10 @@ export function PlannerClient() {
 
   async function loadData() {
     try {
-      const [plansRes, brandsRes] = await Promise.all([
-        fetch(apiUrl(`/v1/workspaces/${workspaceId}/plans`)),
-        fetch(apiUrl(`/v1/workspaces/${workspaceId}/brands`))
-      ]);
+const [plansRes, brandsRes] = await Promise.all([
+  fetch(apiUrl(`/v1/workspaces/${workspaceId}/content-plans`)),
+  fetch(apiUrl(`/v1/workspaces/${workspaceId}/brands`))
+]);
       if (plansRes.ok) setPlans(await plansRes.json());
       if (brandsRes.ok) {
         const b: Brand[] = await brandsRes.json();
@@ -72,7 +72,7 @@ export function PlannerClient() {
   async function loadItems(planId: string) {
     setLoadingItems(true);
     try {
-      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/plans/${planId}/items`));
+      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/content-plans/${planId}/items`));
       if (res.ok) setPlanItems(await res.json());
     } catch { /* silently fail */ }
     finally { setLoadingItems(false); }
@@ -86,7 +86,7 @@ export function PlannerClient() {
     setStatus("Generating content plan...");
     try {
       const themes = form.themes.split(",").map(t => t.trim()).filter(Boolean);
-      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/plans`), {
+      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/content-plans`), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...form, postCount: Number(form.postCount), themes })
@@ -104,7 +104,7 @@ export function PlannerClient() {
 
   async function deletePlan(planId: string) {
     try {
-      await fetch(apiUrl(`/v1/workspaces/${workspaceId}/plans/${planId}`), { method: "DELETE" });
+      await fetch(apiUrl(`/v1/workspaces/${workspaceId}/content-plans/${planId}`), { method: "DELETE" });
       setPlans(prev => prev.filter(p => p.id !== planId));
       if (selectedPlan?.id === planId) { setSelectedPlan(null); setPlanItems([]); }
     } catch { /* silently fail */ }
@@ -113,7 +113,7 @@ export function PlannerClient() {
   async function updateItemStatus(planId: string, itemId: string, currentStatus: string) {
     const nextStatus = ITEM_STATUS_NEXT[currentStatus] ?? "idea";
     try {
-      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/plans/${planId}/items/${itemId}`), {
+      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/content-plans/${planId}/items/${itemId}`), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ status: nextStatus })

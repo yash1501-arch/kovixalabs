@@ -112,6 +112,11 @@ export function BrandMemoryClient() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedBrandId, setSelectedBrandId] = useState("");
 
+  const [documentForm, setDocumentForm] = useState({ title: "", content: "" });
+  const [documentStatus, setDocumentStatus] = useState("Upload a document to ingest into brand memory.");
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [documentResult, setDocumentResult] = useState<{ chunks_created: number } | null>(null);
+
   const hasBrands = brands.length > 0;
   const workspaceId = getWorkspaceId();
 
@@ -350,6 +355,44 @@ export function BrandMemoryClient() {
       );
     } finally {
       setIsSearching(false);
+    }
+  }
+
+  async function ingestDocument() {
+    if (!selectedBrandId) {
+      setDocumentStatus("Select a brand first.");
+      return;
+    }
+    setIsIngesting(true);
+    setDocumentStatus("Ingesting document...");
+    setDocumentResult(null);
+
+    try {
+      const response = await fetch(
+        apiUrl(`/v1/brands/${selectedBrandId}/documents/ingest`),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(documentForm),
+        }
+      );
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || `API returned ${response.status}`);
+      }
+      const result = await response.json();
+      setDocumentResult(result);
+      setDocumentStatus(`Ingested: ${result.chunks_created} chunks created.`);
+      setDocumentForm({ title: "", content: "" });
+      void loadEntries(selectedBrandId);
+    } catch (error) {
+      setDocumentStatus(
+        error instanceof Error
+          ? `Could not ingest document: ${error.message}`
+          : "Could not ingest document."
+      );
+    } finally {
+      setIsIngesting(false);
     }
   }
 
@@ -626,6 +669,47 @@ export function BrandMemoryClient() {
               <p className="lede">No retrieved results yet.</p>
             )}
           </div>
+        </div>
+
+        <div className="studio-form" style={{ marginTop: "1rem" }}>
+          <h3>Document Ingestion</h3>
+          <div className="field">
+            <label htmlFor="doc-title">Document title</label>
+            <input
+              id="doc-title"
+              value={documentForm.title}
+              onChange={(event) =>
+                setDocumentForm((f) => ({ ...f, title: event.target.value }))
+              }
+              placeholder="e.g. Brand Guidelines 2026"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="doc-content">Document content</label>
+            <textarea
+              id="doc-content"
+              rows={8}
+              value={documentForm.content}
+              onChange={(event) =>
+                setDocumentForm((f) => ({ ...f, content: event.target.value }))
+              }
+              placeholder="Paste or type your brand document content here. It will be chunked, embedded, and stored in brand memory."
+            />
+          </div>
+          <button
+            className="btn-vox btn-vox-primary"
+            type="button"
+            disabled={isIngesting || !selectedBrandId || !documentForm.title || !documentForm.content}
+            onClick={() => void ingestDocument()}
+          >
+            {isIngesting ? "Ingesting..." : "Ingest Document"}
+          </button>
+          <p className="lede">{documentStatus}</p>
+          {documentResult && (
+            <p className="lede" style={{ color: "#4ade80" }}>
+              Document split into {documentResult.chunks_created} chunks and stored in brand memory.
+            </p>
+          )}
         </div>
 
         <h3 className="section-subhead">Saved entries</h3>

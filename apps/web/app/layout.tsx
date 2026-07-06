@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KOVIXAILABS AISMOS - AI Social Media Operating System",
+  title: {
+    default: "AISMOS - AI Social Media Operating System",
+    template: "%s | AISMOS",
+  },
   description:
     "The AI-native social media operating system. Brand memory, content generation, trend analysis, and publishing, all powered by AI.",
   keywords: [
@@ -14,7 +17,16 @@ export const metadata: Metadata = {
     "SaaS",
     "AISMOS",
     "KOVIXAILABS"
-  ]
+  ],
+  icons: {
+    icon: "/favicon.svg",
+  },
+  openGraph: {
+    title: "AISMOS - AI Social Media OS",
+    description: "Brand memory, content generation, trend analysis, and publishing — all powered by AI.",
+    siteName: "AISMOS",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {

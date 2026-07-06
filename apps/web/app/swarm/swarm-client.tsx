@@ -102,6 +102,13 @@ export function SwarmClient() {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
+  // Poll for task updates while any task is still processing
+  useEffect(() => {
+    if (!tasks.some(t => t.status === "processing")) return;
+    const interval = setInterval(() => { void loadData(); }, 5000);
+    return () => clearInterval(interval);
+  }, [tasks, loadData]);
+
   async function dispatch() {
     if (!form.brandId) return;
     setDispatching(true);

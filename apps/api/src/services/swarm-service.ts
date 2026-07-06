@@ -1,6 +1,8 @@
 import { prisma } from "../db.js";
 import { ApiError } from "../utils/api-error.js";
 import type { Prisma } from "@prisma/client";
+import { executeSwarmTask } from "./ai-client.js";
+import { searchMemoryEntries } from "./brand-service.js";
 
 export async function listSwarmTasks(workspaceId: string) {
   return prisma.swarmTask.findMany({
@@ -19,9 +21,8 @@ export async function dispatchSwarmTask(input: {
   brandName: string;
 }) {
   const roles = getSwarmRoles(input.type);
-  const output = getSwarmOutput(input.type, input.brandName, input.input);
 
-  return prisma.swarmTask.create({
+  const task = await prisma.swarmTask.create({
     data: {
       workspaceId: input.workspaceId,
       brandId: input.brandId,
@@ -29,7 +30,7 @@ export async function dispatchSwarmTask(input: {
       status: "processing",
       priority: input.priority,
       input: input.input as Prisma.InputJsonValue,
-      output: output as Prisma.InputJsonValue,
+      output: {},
       agentCount: roles.length,
       completedAgents: 0,
       agents: {
@@ -43,6 +44,62 @@ export async function dispatchSwarmTask(input: {
         })),
       },
     },
+    include: { agents: true },
+  });
+
+  try {
+    let brandMemory: string[] = [];
+    try {
+      const memoryResults = await searchMemoryEntries(input.brandId, {
+        query: input.type.replace(/_/g, " "),
+        limit: 5,
+      });
+      brandMemory = memoryResults.map((m: any) => m.content);
+    } catch {
+      // Memory search is non-critical
+    }
+
+    const aiResult = await executeSwarmTask({
+      task_id: task.id,
+      task_type: input.type,
+      agents: task.agents.map((a) => ({ agent_id: a.id, role: a.role, action: a.currentAction })),
+      brand_context: `Brand: ${input.brandName}`,
+      brand_memory: brandMemory,
+      platform: (input.input.platform as string) ?? undefined,
+    });
+
+    for (const agentResult of aiResult.agents) {
+      await prisma.swarmAgent.update({
+        where: { id: agentResult.agent_id },
+        data: {
+          status: agentResult.status === "completed" ? "completed" : "failed",
+          progress: agentResult.status === "completed" ? 100 : 0,
+          logs: { push: [`Result: ${agentResult.result}`] } as any,
+        },
+      });
+    }
+
+    const completedCount = aiResult.completed_count;
+    await prisma.swarmTask.update({
+      where: { id: task.id },
+      data: {
+        status: completedCount === task.agentCount ? "completed" : "failed",
+        completedAgents: completedCount,
+        output: { agentResults: aiResult.agents } as Prisma.InputJsonValue,
+      },
+    });
+  } catch {
+    await prisma.swarmTask.update({
+      where: { id: task.id },
+      data: {
+        status: "processing",
+        output: getSwarmOutput(input.type, input.brandName, input.input) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  return prisma.swarmTask.findUnique({
+    where: { id: task.id },
     include: { agents: true },
   });
 }

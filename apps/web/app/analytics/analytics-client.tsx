@@ -86,7 +86,7 @@ export function AnalyticsClient() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/analytics?period=${p}`));
+      const res = await fetch(apiUrl(`/v1/workspaces/${workspaceId}/stats?period=${p}`));
       if (!res.ok) throw new Error(`API error ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -94,6 +94,42 @@ export function AnalyticsClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function downloadCSV() {
+    if (!data) return;
+    const rows: string[][] = [
+      ["Metric", "Value"],
+      ["Published", String(data.publishedPosts)],
+      ["Scheduled", String(data.scheduledPosts)],
+      ["Drafts", String(data.draftPosts)],
+      ["Total Impressions", String(data.totalImpressions)],
+      ["Total Reach", String(data.totalReach)],
+      ["Total Engagements", String(data.totalEngagements)],
+      ["Engagement Rate", `${data.engagementRate}%`],
+    ];
+    if (data.platformBreakdown.length) {
+      rows.push([], ["Platform", "Posts", "Impressions", "Engagements"]);
+      data.platformBreakdown.forEach(p =>
+        rows.push([p.platform, String(p.posts), String(p.impressions), String(p.engagements)])
+      );
+    }
+    if (data.dailyStats.length) {
+      rows.push([], ["Date", "Impressions", "Engagements"]);
+      data.dailyStats.forEach(d =>
+        rows.push([d.date, String(d.impressions), String(d.engagements)])
+      );
+    }
+    const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-${period}-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => { void load(period); }, [period]);
@@ -113,6 +149,16 @@ export function AnalyticsClient() {
             {p === "7d" ? "7 Days" : p === "30d" ? "30 Days" : "90 Days"}
           </button>
         ))}
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          className="btn-vox btn-vox-secondary"
+          style={{ fontSize: "13px", padding: "6px 16px" }}
+          disabled={!data}
+          onClick={() => downloadCSV()}
+        >
+          Download CSV
+        </button>
       </div>
 
       {/* Key metrics */}
